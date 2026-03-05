@@ -176,12 +176,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const login = (email: string, password: string): boolean => {
-    const cred = credentials.find(c => c.email === email && c.password === password);
+  const login = (username: string, password: string): boolean => {
+    const user = users.find(u => u.username === username);
+    if (!user) return false;
+    const cred = credentials.find(c => c.userId === user.id && c.password === password);
     if (!cred) return false;
-    const user = users.find(u => u.id === cred.userId);
-    if (user) setCurrentUser(user);
-    return !!user;
+    setCurrentUser(user);
+    return true;
   };
 
   const logout = () => setCurrentUser(null);
