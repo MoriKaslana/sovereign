@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import QuestCard from "@/components/QuestCard";
 import InviteModal from "@/components/InviteModal";
 
@@ -14,7 +20,9 @@ const QuestBoard = () => {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [diff, setDiff] = useState<QuestDifficulty>("medium");
-  const [hours, setHours] = useState(24);
+  const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined);
+  const [deadlineHour, setDeadlineHour] = useState("12");
+  const [deadlineMinute, setDeadlineMinute] = useState("00");
   const [open, setOpen] = useState(false);
 
   const isGM = currentUser?.role === "guild_master";
@@ -26,8 +34,12 @@ const QuestBoard = () => {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    createQuest(title, desc, diff, hours);
-    setTitle(""); setDesc(""); setOpen(false);
+    if (!deadlineDate) return;
+    const deadline = new Date(deadlineDate);
+    deadline.setHours(parseInt(deadlineHour), parseInt(deadlineMinute), 0, 0);
+    const deadlineMs = deadline.getTime();
+    createQuest(title, desc, diff, deadlineMs);
+    setTitle(""); setDesc(""); setDeadlineDate(undefined); setOpen(false);
   };
 
   const diffColors: Record<QuestDifficulty, string> = {
@@ -79,8 +91,50 @@ const QuestBoard = () => {
                     </div>
                   </div>
                   <div>
-                    <Label>Deadline (hours)</Label>
-                    <Input type="number" value={hours} onChange={e => setHours(Number(e.target.value))} min={1} className="bg-secondary" />
+                    <Label>Deadline</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("flex-1 justify-start text-left font-body bg-secondary border-border", !deadlineDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {deadlineDate ? format(deadlineDate, "PPP") : "Pick date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={deadlineDate}
+                            onSelect={setDeadlineDate}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Select value={deadlineHour} onValueChange={setDeadlineHour}>
+                        <SelectTrigger className="w-20 bg-secondary border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <SelectItem key={i} value={String(i).padStart(2, "0")}>
+                              {String(i).padStart(2, "0")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="flex items-center text-muted-foreground">:</span>
+                      <Select value={deadlineMinute} onValueChange={setDeadlineMinute}>
+                        <SelectTrigger className="w-20 bg-secondary border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["00", "15", "30", "45"].map(m => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full font-heading">Dispatch Quest</Button>
                 </form>

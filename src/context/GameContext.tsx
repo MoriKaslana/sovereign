@@ -73,7 +73,7 @@ interface GameState {
   login: (email: string, password: string) => boolean;
   register: (email: string, username: string, password: string, role: Role) => boolean;
   logout: () => void;
-  createQuest: (title: string, description: string, difficulty: QuestDifficulty, deadlineHours: number) => void;
+  createQuest: (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => void;
   acceptQuest: (questId: string) => void;
   submitQuest: (questId: string) => void;
   approveQuest: (questId: string) => void;
@@ -196,13 +196,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => setCurrentUser(null);
 
-  const createQuest = (title: string, description: string, difficulty: QuestDifficulty, deadlineHours: number) => {
+  const createQuest = (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
     if (!currentUser) return;
     const quest: Quest = {
       id: crypto.randomUUID(),
       title, description, difficulty,
       xpReward: XP_MAP[difficulty],
-      deadline: Date.now() + deadlineHours * 60 * 60 * 1000,
+      deadline: deadlineTimestamp,
       createdBy: currentUser.id,
       assignedTo: null,
       status: "open",
