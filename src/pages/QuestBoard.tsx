@@ -95,19 +95,15 @@ const QuestBoard = () => {
         {openQuests.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
 
-      {!isGM && (
-        <>
-          <Section title="Active Quests" count={myActive.length}>
-            {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
-          </Section>
-          <Section title="Submitted (Awaiting Review)" count={mySubmitted.length} glow="gold">
-            {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
-          </Section>
-          <Section title="Completed" count={myCompleted.length} glow="green">
-            {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
-          </Section>
-        </>
-      )}
+      <Section title="Active Quests" count={myActive.length}>
+        {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
+      </Section>
+      <Section title="Submitted (Awaiting Review)" count={mySubmitted.length} glow="gold">
+        {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
+      </Section>
+      <Section title="Completed" count={myCompleted.length} glow="green">
+        {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
+      </Section>
     </div>
   );
 };

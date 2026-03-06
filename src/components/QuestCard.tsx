@@ -12,7 +12,6 @@ const diffBadge: Record<string, string> = {
 
 const QuestCard = ({ quest }: { quest: Quest }) => {
   const { currentUser, acceptQuest, submitQuest } = useGame();
-  const isAdventurer = currentUser?.role === "adventurer";
 
   const timeLeft = quest.status === "submitted" ? 0 : Math.max(0, quest.deadline - Date.now());
   const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
@@ -59,12 +58,12 @@ const QuestCard = ({ quest }: { quest: Quest }) => {
         )}
       </div>
 
-      {isAdventurer && quest.status === "open" && (
+      {quest.status === "open" && (
         <Button onClick={() => acceptQuest(quest.id)} className="w-full font-heading" size="sm">
           Accept Mission
         </Button>
       )}
-      {isAdventurer && quest.status === "accepted" && quest.assignedTo === currentUser?.id && (
+      {quest.status === "accepted" && quest.assignedTo === currentUser?.id && (
         <Button onClick={() => submitQuest(quest.id)} variant="secondary" className="w-full font-heading border border-gold/30" size="sm">
           Submit for Review
         </Button>
