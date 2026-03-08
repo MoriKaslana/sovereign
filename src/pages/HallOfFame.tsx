@@ -6,7 +6,6 @@ const HallOfFame = () => {
   const { users, achievements, currentUser } = useGame();
 
   const leaderboard = [...users]
-    .filter(u => u.role === "adventurer")
     .sort((a, b) => b.xp - a.xp);
 
   return (
