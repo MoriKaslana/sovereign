@@ -6,13 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { UserPlus } from "lucide-react";
 
 const InviteModal = () => {
-  const { inviteAdventurer } = useGame();
+  const { sendInvite } = useGame();
   const [email, setEmail] = useState("");
   const [result, setResult] = useState("");
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    setResult(inviteAdventurer(email));
+    await sendInvite(email);
     setEmail("");
   };
 

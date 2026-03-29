@@ -17,13 +17,18 @@ const AuthScreen = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fungsi handleSubmit sekarang pakai async
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (isLogin) {
-      if (!login(username, password)) setError("Invalid credentials.");
+      // Ditambah await karena login sekarang nembak ke Supabase
+      const success = await login(username, password);
+      if (!success) setError("Invalid credentials.");
     } else {
-      if (!register(email, username, password, role)) setError("Email already registered.");
+      // Ditambah await karena register sekarang nembak ke Supabase
+      const success = await register(email, username, password, role);
+      if (!success) setError("Registration failed or email/username already taken.");
     }
   };
 
@@ -48,13 +53,13 @@ const AuthScreen = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isLogin ? (
             <div>
-              <Label className="text-foreground">Username</Label>
+              <Label className="text-foreground">Username or Email</Label>
               <Input
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required
                 className="bg-secondary border-border"
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
               />
             </div>
           ) : (

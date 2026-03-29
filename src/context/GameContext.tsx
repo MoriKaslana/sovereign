@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 export type Role = "guild_master" | "adventurer";
@@ -41,6 +42,9 @@ export interface User {
   stagnantSoulCounter: number; // quests remaining under Stagnant Soul
   rustyEquipment: boolean; // grayscale + buffs disabled
   brokenShieldQuests: string[]; // quest IDs with -25% penalty
+  isGuildMaster: boolean; // 👈 Tambahan untuk sinkronisasi DB
+  isAdventurer: boolean;   // 👈 Tambahan untuk sinkronisasi DB
+  availableRoles: Role[]; // 👈 Tambahan untuk sinkronisasi DB
 }
 
 export interface Quest {
@@ -100,17 +104,19 @@ interface GameState {
   quests: Quest[];
   chatMessages: ChatMessage[];
   achievements: Achievement[];
-  login: (email: string, password: string) => boolean;
-  register: (email: string, username: string, password: string, role: Role) => boolean;
+  login: (identifier: string, password: string) => Promise<boolean>;
+  register: (email: string, username: string, password: string, role: Role) => Promise<boolean>;
   logout: () => void;
-  createQuest: (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => void;
-  acceptQuest: (questId: string) => void;
-  submitQuest: (questId: string) => void;
-  approveQuest: (questId: string) => void;
-  rejectQuest: (questId: string) => void;
+  createQuest: (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => Promise<void>;
+  acceptQuest: (questId: string) => Promise<void>;
+  submitQuest: (questId: string) => Promise<void>;
+  approveQuest: (questId: string) => Promise<void>;
+  rejectQuest: (questId: string) => Promise<void>;
   sendMessage: (message: string) => void;
-  inviteAdventurer: (email: string) => string;
+  sendInvite: (email: string) => Promise<void>; // Ganti ini
+  acceptInvite: (inviteId: string, guildId: string) => Promise<void>; // Tambah ini
   changeAvatar: (avatar: string) => void;
+  switchRole: (newRole: Role) => Promise<void>; // 👈 Tambahan fungsi pindah role
   availableAvatars: string[];
 }
 
@@ -128,7 +134,12 @@ interface Credentials {
   userId: string;
 }
 
-const XP_MAP: Record<QuestDifficulty, number> = { easy: 50, medium: 100, hard: 200, legendary: 500 };
+const XP_MAP: Record<QuestDifficulty, number> = { 
+  easy: 50, 
+  medium: 100, 
+  hard: 200, 
+  legendary: 500 
+};
 
 const BUFF_DURATION = 24 * 60 * 60 * 1000; // 24 hours default
 const CHAIN_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
@@ -143,7 +154,121 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messageCount, setMessageCount] = useState<Record<string, number>>({});
 
   const guildId = "sovereign-guild";
+  // --- DATA FETCHERS (SUPABASE SYNC) ---
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from('users').select('*');
+    if (!error && data) {
+      const mapped: User[] = data.map(u => ({
+        id: u.id, email: u.email, username: u.username, role: u.role as Role, avatar: u.avatar,
+        xp: u.xp || 0, level: u.level || 1, buffs: u.buffs || [], debuffs: u.debuffs || [],
+        activeBuffs: u.active_buffs || [], activeDebuffs: u.active_debuffs || [],
+        guildId: u.guild_id, questsCompleted: u.quests_completed || 0,
+        joinedAt: u.joined_at || Date.now(), lastQuestCompletedAt: u.last_quest_completed_at,
+        consecutiveLateCount: u.consecutive_late_count || 0, debuffImmunity: u.debuff_immunity || false,
+        stagnantSoulCounter: u.stagnant_soul_counter || 0, rustyEquipment: u.rusty_equipment || false,
+        brokenShieldQuests: u.broken_shield_quests || [],
+        isGuildMaster: u.is_guild_master || false, // 👈 Sesuai DB
+        isAdventurer: u.is_adventurer || false,     // 👈 Sesuai DB
+        availableRoles: [ // 👈 Mapping boolean ke array string
+          ...(u.is_guild_master ? ['guild_master'] : []),
+          ...(u.is_adventurer ? ['adventurer'] : []),
+        ] as Role[]
+      }));
+      setUsers(mapped);
+    }
+  };
 
+const fetchQuests = useCallback(async () => {
+  if (!currentUser) return;
+
+  // 1. Mulai query fresh
+  let query = supabase.from('quests').select('*');
+
+  // 2. Logic Filter:
+  if (currentUser.guildId && currentUser.guildId !== "") {
+    // Jika punya guild, tarik yang guild_id-nya MATCHING
+    query = query.eq('guild_id', currentUser.guildId);
+  } else {
+    // Jika tidak punya guild (Wanderer), tarik yang kosong/null
+    // Pake filter sederhana agar tidak bentrok
+    query = query.or('guild_id.is.null,guild_id.eq.""');
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching quests:", error);
+    return;
+  }
+  
+  const mappedQuests: Quest[] = data.map(q => ({
+    id: q.id,
+    title: q.title,
+    description: q.description,
+    difficulty: q.difficulty as QuestDifficulty,
+    xpReward: q.xp_reward || 0,
+    deadline: q.deadline,
+    createdBy: q.created_by,
+    assignedTo: q.assigned_to,
+    status: q.status as QuestStatus,
+    createdAt: new Date(q.created_at).getTime(),
+    acceptedAt: q.accepted_at ? new Date(q.accepted_at).getTime() : null,
+    submittedAt: q.submitted_at ? new Date(q.submitted_at).getTime() : null,
+    completedAt: q.completed_at ? new Date(q.completed_at).getTime() : null,
+    guildId: q.guild_id || "", 
+  }));
+  
+  setQuests(mappedQuests);
+}, [currentUser?.guildId]); // Cukup pantau guildId-nya saja
+
+const updateUserInDb = async (user: User) => {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      xp: user.xp,
+      level: user.level,
+      last_quest_completed_at: user.lastQuestCompletedAt, 
+      buffs: user.buffs,
+      debuffs: user.debuffs,
+      active_buffs: user.activeBuffs,
+      active_debuffs: user.activeDebuffs,
+      quests_completed: user.questsCompleted,
+      guild_id: user.guildId || null, 
+      is_guild_master: user.isGuildMaster,
+      is_adventurer: user.isAdventurer
+    })
+    .eq('id', user.id);
+
+  if (error) {
+    console.error("⛔ Gagal update data user di database:", error.message);
+    return false;
+  }
+  return true;
+};
+
+  // --- PERSISTENCE LOGIC ---
+  useEffect(() => {
+    const savedUser = localStorage.getItem('game_user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('game_user');
+      }
+    }
+    fetchUsers();
+    fetchQuests();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('game_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('game_user');
+    }
+  }, [currentUser]);
+
+  // --- GAME LOGIC ---
   const calcLevel = (xp: number) => Math.floor(xp / 200) + 1;
 
   const addBuff = (user: User, name: string, durationMs: number | null, questId?: string): User => {
@@ -156,7 +281,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addDebuff = (user: User, name: string, durationMs: number | null, questId?: string, remainingQuests?: number): User => {
-    // Check immunity from Aura of Purity
     if (user.debuffImmunity) {
       toast("🛡️ Aura of Purity blocked a debuff!", { description: `${name} was prevented by your golden shield.` });
       return { ...user, debuffImmunity: false };
@@ -190,110 +314,66 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const applyBuffsDebuffs = useCallback((user: User, quest: Quest, submittedAt: number, allQuests: Quest[]): User => {
     let u = cleanExpiredEffects(user);
-
     const timeLeft = quest.deadline - submittedAt;
     const totalTime = quest.deadline - (quest.acceptedAt || quest.createdAt);
 
-    // --- BUFFS ---
-
-    // Adventurer's Haste: submitted 24h+ before deadline → +50% XP
     if (timeLeft >= 24 * 60 * 60 * 1000) {
       u = addBuff(u, "Adventurer's Haste", BUFF_DURATION, quest.id);
       toast("⚡ Buff: Adventurer's Haste", { description: "+50% XP! Submitted 24h+ early." });
     }
-
-    // Scholar's Focus: hard quest → +20% XP
     if (quest.difficulty === "hard") {
       u = addBuff(u, "Scholar's Focus", BUFF_DURATION, quest.id);
       toast("📚 Buff: Scholar's Focus", { description: "+20% XP! Completed a Hard quest." });
     }
-
-    // Weekend Warrior: weekend submission → +10% XP
     const day = new Date(submittedAt).getDay();
     if (day === 0 || day === 6) {
       u = addBuff(u, "Weekend Warrior", BUFF_DURATION, quest.id);
       toast("🗡️ Buff: Weekend Warrior", { description: "+10% XP! Weekend dedication." });
     }
-
-    // Night Owl buff
     const hour = new Date(submittedAt).getHours();
     if (hour >= 0 && hour < 5) {
       u = addBuff(u, "Night Owl", BUFF_DURATION, quest.id);
       toast("🦉 Buff: Night Owl", { description: "Burning the midnight oil!" });
     }
-
-    // Clutch Player
     if (timeLeft > 0 && timeLeft < totalTime * 0.1) {
       u = addBuff(u, "Clutch Player", BUFF_DURATION, quest.id);
       toast("🎯 Buff: Clutch Player", { description: "Submitted just in time!" });
     }
-
-    // First Strike
     const timeSinceAccept = submittedAt - (quest.acceptedAt || quest.createdAt);
     if (timeSinceAccept < 60 * 60 * 1000) {
       u = addBuff(u, "First Strike", BUFF_DURATION, quest.id);
       toast("⚔️ Buff: First Strike", { description: "Completed within an hour!" });
     }
-
-    // Chain Quest (Combo): 3 submissions within 24h → +15% XP on 3rd
-    const recentSubmissions = allQuests.filter(
-      q => q.assignedTo === u.id && q.submittedAt && (submittedAt - q.submittedAt) < CHAIN_WINDOW && q.id !== quest.id
-    );
+    const recentSubmissions = allQuests.filter(q => q.assignedTo === u.id && q.submittedAt && (submittedAt - q.submittedAt) < CHAIN_WINDOW && q.id !== quest.id);
     if (recentSubmissions.length >= 2) {
       u = addBuff(u, "Chain Quest", BUFF_DURATION, quest.id);
       toast("🔗 Buff: Chain Quest (Combo)!", { description: "+15% XP! 3 quests in 24 hours." });
     }
-
-    // Aura of Purity: legendary quest → clear all debuffs + immunity
     if (quest.difficulty === "legendary") {
       u = addBuff(u, "Aura of Purity", BUFF_DURATION, quest.id);
       u = {
-        ...u,
-        debuffs: [],
-        activeDebuffs: [],
-        debuffImmunity: true,
-        rustyEquipment: false,
-        stagnantSoulCounter: 0,
-        consecutiveLateCount: 0,
+        ...u, debuffs: [], activeDebuffs: [], debuffImmunity: true,
+        rustyEquipment: false, stagnantSoulCounter: 0, consecutiveLateCount: 0,
       };
       toast("✨ Ultimate Buff: Aura of Purity!", { description: "All debuffs cleared! Immunity to next debuff granted." });
-    }
-
-    // Scholar's Focus for legendary too
-    if (quest.difficulty === "legendary") {
       u = addBuff(u, "Scholar's Focus", BUFF_DURATION, quest.id);
     }
-
-    // --- DEBUFFS ---
-
-    // Cursed Procrastination: late submission → -10 XP
     if (submittedAt > quest.deadline) {
       u = addDebuff(u, "Cursed Procrastination", 48 * 60 * 60 * 1000, quest.id);
-      if (u.debuffs.includes("Cursed Procrastination")) {
-        toast("🐌 Debuff: Cursed Procrastination", { description: "-10 XP penalty for late submission." });
-      }
+      if (u.debuffs.includes("Cursed Procrastination")) toast("🐌 Debuff: Cursed Procrastination", { description: "-10 XP penalty for late submission." });
       u = { ...u, consecutiveLateCount: u.consecutiveLateCount + 1 };
     } else {
       u = { ...u, consecutiveLateCount: 0 };
     }
-
-    // Stagnant Soul: 3 consecutive late submissions
     if (u.consecutiveLateCount >= 3) {
       u = addDebuff(u, "Stagnant Soul", null, quest.id, 3);
-      if (u.debuffs.includes("Stagnant Soul")) {
-        toast("⛓️ Ultimate Debuff: Stagnant Soul!", { description: "ALL buffs blocked for next 3 quests." });
-      }
+      if (u.debuffs.includes("Stagnant Soul")) toast("⛓️ Ultimate Debuff: Stagnant Soul!", { description: "ALL buffs blocked for next 3 quests." });
     }
-
-    // Slacker's Fatigue: >5 active quests
     const activeQuests = allQuests.filter(q => q.assignedTo === u.id && q.status === "accepted");
     if (activeQuests.length > 5) {
       u = addDebuff(u, "Slacker's Fatigue", 24 * 60 * 60 * 1000, quest.id);
-      if (u.debuffs.includes("Slacker's Fatigue")) {
-        toast("😴 Debuff: Slacker's Fatigue", { description: "-5% XP on next quest." });
-      }
+      if (u.debuffs.includes("Slacker's Fatigue")) toast("😴 Debuff: Slacker's Fatigue", { description: "-5% XP on next quest." });
     }
-
     return u;
   }, []);
 
@@ -315,12 +395,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return u;
   }, []);
 
-  const calcXpWithModifiers = (user: User, quest: Quest): { baseXp: number; bonuses: { name: string; amount: number }[]; penalties: { name: string; amount: number }[]; totalXp: number } => {
+  const calcXpWithModifiers = (user: User, quest: Quest) => {
     const baseXp = quest.xpReward;
     const bonuses: { name: string; amount: number }[] = [];
     const penalties: { name: string; amount: number }[] = [];
-
-    // If Stagnant Soul is active or Rusty Equipment, no buff bonuses
     const buffsBlocked = user.stagnantSoulCounter > 0 || user.rustyEquipment;
 
     if (!buffsBlocked) {
@@ -329,8 +407,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user.buffs.includes("Weekend Warrior")) bonuses.push({ name: "Weekend Warrior (+10%)", amount: Math.floor(baseXp * 0.1) });
       if (user.buffs.includes("Chain Quest")) bonuses.push({ name: "Chain Quest (+15%)", amount: Math.floor(baseXp * 0.15) });
     }
-
-    // Debuff penalties
     if (user.debuffs.includes("Cursed Procrastination")) penalties.push({ name: "Cursed Procrastination", amount: 10 });
     if (user.debuffs.includes("Slacker's Fatigue")) penalties.push({ name: "Slacker's Fatigue (-5%)", amount: Math.floor(baseXp * 0.05) });
     if (user.brokenShieldQuests.includes(quest.id)) penalties.push({ name: "Broken Shield (-25%)", amount: Math.floor(baseXp * 0.25) });
@@ -342,262 +418,460 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { baseXp, bonuses, penalties, totalXp };
   };
 
-  const register = (email: string, username: string, password: string, role: Role): boolean => {
-    if (credentials.find(c => c.email === email)) return false;
-    const id = crypto.randomUUID();
-    const newUser: User = {
-      id, email, username, role,
-      avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
-      xp: 0, level: 1, buffs: [], debuffs: [],
-      activeBuffs: [], activeDebuffs: [],
-      guildId, questsCompleted: 0, joinedAt: Date.now(),
-      lastQuestCompletedAt: null, consecutiveLateCount: 0,
-      debuffImmunity: false, stagnantSoulCounter: 0,
-      rustyEquipment: false, brokenShieldQuests: [],
-    };
-    setUsers(prev => [...prev, newUser]);
-    setCredentials(prev => [...prev, { email, password, userId: id }]);
-    setCurrentUser(newUser);
-    return true;
+  // --- AUTH METHODS ---
+  // --- AUTH METHODS ---
+  const register = async (email: string, username: string, password: string, role: Role): Promise<boolean> => {
+    try {
+      // 1. Cek dulu apakah email ini sudah terdaftar
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingUser) {
+        // --- MULTI-ROLE HANDLING ---
+        const isGM = existingUser.is_guild_master || false;
+        const isAdv = existingUser.is_adventurer || false;
+
+        if (role === "guild_master" && isGM) {
+          toast.error("Lo udah punya role Guild Master di akun ini!");
+          return false;
+        }
+        if (role === "adventurer" && isAdv) {
+          toast.error("Lo udah punya role Adventurer di akun ini!");
+          return false;
+        }
+
+        // Logic Tambahan: Jika user lama nambah role Guild Master, dia juga harus dapet Guild ID baru
+        const newGuildId = (role === "guild_master" && !existingUser.guild_id) 
+          ? crypto.randomUUID() 
+          : existingUser.guild_id;
+
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ 
+            role: role, 
+            guild_id: newGuildId, // Update guild_id jika dia baru jadi GM
+            is_guild_master: role === "guild_master" ? true : isGM,
+            is_adventurer: role === "adventurer" ? true : isAdv
+          })
+          .eq('id', existingUser.id);
+
+        if (updateError) throw updateError;
+        
+        await fetchUsers();
+        toast.success(`Role ${role} berhasil ditambahkan! Silakan login untuk ganti role.`);
+        return true;
+      }
+
+      // 2. Cek username agar tidak ada duplikasi
+      const { data: userWithUsername } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (userWithUsername) {
+        toast.error("Username ini sudah diambil Adventurer lain!");
+        return false;
+      }
+
+      // --- DAFTAR USER BARU TULEN ---
+      const id = crypto.randomUUID();
+      
+      // LOGIKA BARU: Guildmaster dapet UUID, Adventurer dapet string kosong (null-like)
+      const assignedGuildId = role === "guild_master" ? crypto.randomUUID() : "";
+
+      const newUser: User = {
+        id, email, username, role, avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
+        xp: 0, level: 1, buffs: [], debuffs: [], activeBuffs: [], activeDebuffs: [],
+        guildId: assignedGuildId, // 👈 Pakai ID yang sudah ditentukan
+        questsCompleted: 0, joinedAt: Date.now(), lastQuestCompletedAt: null, 
+        consecutiveLateCount: 0, debuffImmunity: false, stagnantSoulCounter: 0, rustyEquipment: false, brokenShieldQuests: [],
+        isGuildMaster: role === "guild_master",
+        isAdventurer: role === "adventurer",
+        availableRoles: [role]
+      };
+
+      const { error } = await supabase.from('users').insert([{ 
+        id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role, password_hash: password, 
+        avatar: newUser.avatar, xp: newUser.xp, level: newUser.level, buffs: newUser.buffs, debuffs: newUser.debuffs,
+        active_buffs: newUser.activeBuffs, active_debuffs: newUser.activeDebuffs, 
+        guild_id: assignedGuildId, // 👈 Masukkan ke Database
+        quests_completed: newUser.questsCompleted, joined_at: newUser.joinedAt, last_quest_completed_at: newUser.lastQuestCompletedAt,
+        consecutive_late_count: newUser.consecutiveLateCount, debuff_immunity: newUser.debuffImmunity,
+        stagnant_soul_counter: newUser.stagnantSoulCounter, rusty_equipment: newUser.rustyEquipment, broken_shield_quests: newUser.brokenShieldQuests,
+        is_guild_master: newUser.isGuildMaster, is_adventurer: newUser.isAdventurer 
+      }]);
+
+      if (error) throw error;
+      setUsers(prev => [...prev, newUser]);
+      setCurrentUser(newUser);
+      toast.success(role === "guild_master" ? `Guild created! Welcome, Master ${username}!` : `Welcome to the Guild, ${username}!`);
+      return true;
+    } catch (error: any) {
+      toast.error("Gagal mendaftar: " + error.message);
+      return false;
+    }
   };
 
-  const login = (username: string, password: string): boolean => {
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (!user) return false;
-    const cred = credentials.find(c => c.userId === user.id && c.password === password);
-    if (!cred) return false;
-    // Clean expired effects on login
-    const cleaned = cleanExpiredEffects(user);
-    setCurrentUser(cleaned);
-    setUsers(prev => prev.map(u => u.id === cleaned.id ? cleaned : u));
-    return true;
+  const login = async (identifier: string, password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.from('users').select('*').or(`username.eq."${identifier}",email.eq."${identifier}"`).eq('password_hash', password).maybeSingle();
+      if (error) throw error;
+      if (!data) { toast.error("Email/Username atau Password salah!"); return false; }
+
+      const loggedInUser: User = {
+        id: data.id, email: data.email, username: data.username, role: data.role as Role, avatar: data.avatar,
+        xp: data.xp || 0, level: data.level || 1, buffs: data.buffs || [], debuffs: data.debuffs || [],
+        activeBuffs: data.active_buffs || [], activeDebuffs: data.active_debuffs || [], guildId: data.guild_id || "",
+        questsCompleted: data.quests_completed || 0, joinedAt: data.joined_at || Date.now(), lastQuestCompletedAt: data.last_quest_completed_at,
+        consecutiveLateCount: data.consecutive_late_count || 0, debuffImmunity: data.debuff_immunity || false,
+        stagnantSoulCounter: data.stagnant_soul_counter || 0, rustyEquipment: data.rusty_equipment || false, brokenShieldQuests: data.broken_shield_quests || [],
+        isGuildMaster: data.is_guild_master || false, // 👈 Sesuai DB
+        isAdventurer: data.is_adventurer || false,     // 👈 Sesuai DB
+        availableRoles: [ // 👈 Mapping boolean ke array string
+          ...(data.is_guild_master ? ['guild_master'] : []),
+          ...(data.is_adventurer ? ['adventurer'] : []),
+        ] as Role[]
+      };
+      setCurrentUser(loggedInUser);
+      toast.success(`Welcome back, ${loggedInUser.username}!`);
+      return true;
+    } catch (err: any) {
+      toast.error("Gagal Login.");
+      return false;
+    }
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('game_user');
+    toast.success("Logged out safely, Adventurer!");
+  };
 
-  const createQuest = (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
+  const switchRole = async (newRole: Role): Promise<void> => {
     if (!currentUser) return;
-    const quest: Quest = {
-      id: crypto.randomUUID(),
-      title, description, difficulty,
-      xpReward: XP_MAP[difficulty],
-      deadline: deadlineTimestamp,
-      createdBy: currentUser.id,
-      assignedTo: null,
-      status: "open",
-      createdAt: Date.now(),
-      acceptedAt: null, submittedAt: null, completedAt: null,
-      guildId,
-    };
-    setQuests(prev => [...prev, quest]);
+
+    // Cek apakah user punya hak akses ke role tersebut
+    const hasAccess = newRole === "guild_master" ? currentUser.isGuildMaster : currentUser.isAdventurer;
+    if (!hasAccess) {
+      toast.error("Lo belum punya role ini, Adventurer!");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ role: newRole })
+      .eq('id', currentUser.id);
+
+    if (error) {
+      toast.error("Gagal berpindah role.");
+      return;
+    }
+
+    const updatedUser = { ...currentUser, role: newRole };
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+
+    const icon = newRole === "guild_master" ? "👑" : "⚔️";
+    toast.success(`Berhasil menjadi ${newRole === 'guild_master' ? 'Guild Master' : 'Adventurer'}!`, { icon });
   };
 
-  const acceptQuest = (questId: string) => {
+ // --- QUEST METHODS (ASYNC SYNC) ---
+const createQuest = async (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
+  if (!currentUser) return;
+
+  const questData = {
+    title, 
+    description, 
+    difficulty, 
+    xp_reward: XP_MAP[difficulty], 
+    // Balikin ke angka (number) karena database lo tipenya BigInt
+    deadline: deadlineTimestamp, 
+    created_by: currentUser.id, 
+    guild_id: currentUser.guildId || null, 
+    status: "open"
+  };
+
+  const { error } = await supabase.from('quests').insert([questData]);
+  
+  if (error) {
+    toast.error("Gagal membuat quest: " + error.message);
+    console.error(error);
+  } else { 
+    fetchQuests(); 
+    toast.success("Quest dipublish!"); 
+  }
+};
+
+  const acceptQuest = async (questId: string): Promise<void> => {
     if (!currentUser) return;
-    setQuests(prev => prev.map(q =>
-      q.id === questId ? { ...q, status: "accepted" as QuestStatus, assignedTo: currentUser.id, acceptedAt: Date.now() } : q
-    ));
-    const updated = checkInactivityDebuff(currentUser, quests);
-    setCurrentUser(updated);
-    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    const { error } = await supabase
+      .from('quests')
+      .update({ 
+        status: "accepted", 
+        assigned_to: currentUser.id, 
+        accepted_at: new Date().toISOString() 
+      })
+      .eq('id', questId);
+
+    if (error) {
+      toast.error("Gagal mengambil quest");
+      return;
+    }
+    
+    const updatedUser = checkInactivityDebuff(currentUser, quests);
+    await updateUserInDb(updatedUser);
+    fetchQuests();
+    toast.success("Quest diterima!");
   };
 
-  const submitQuest = (questId: string) => {
+  const submitQuest = async (questId: string): Promise<void> => {
     if (!currentUser) return;
     const now = Date.now();
-    setQuests(prev => prev.map(q =>
-      q.id === questId ? { ...q, status: "submitted" as QuestStatus, submittedAt: now } : q
-    ));
     const quest = quests.find(q => q.id === questId);
-    if (quest) {
-      const updated = applyBuffsDebuffs(currentUser, quest, now, quests);
-      setCurrentUser(updated);
-      setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    if (!quest) return;
+
+    const { error } = await supabase
+      .from('quests')
+      .update({ 
+        status: "submitted", 
+        submitted_at: new Date(now).toISOString() 
+      })
+      .eq('id', questId);
+
+    if (error) {
+      toast.error("Gagal submit");
+      return;
     }
+
+    const tempQuest = { ...quest, status: "submitted" as QuestStatus, submittedAt: now };
+    const updatedUser = applyBuffsDebuffs(currentUser, tempQuest, now, quests);
+    await updateUserInDb(updatedUser);
+    fetchQuests();
+    toast.success("Quest dikirim!");
   };
 
-  const rejectQuest = (questId: string) => {
+  const rejectQuest = async (questId: string): Promise<void> => {
     if (!currentUser) return;
     const quest = quests.find(q => q.id === questId);
     if (!quest || !quest.assignedTo) return;
 
-    // Mark quest as rejected → goes back to accepted with wasRejected flag
-    setQuests(prev => prev.map(q =>
-      q.id === questId ? { ...q, status: "accepted" as QuestStatus, submittedAt: null, wasRejected: true } : q
-    ));
-
-    // Apply Broken Shield debuff to the adventurer
-    setUsers(prev => prev.map(u => {
-      if (u.id === quest.assignedTo) {
-        let updated = addDebuff(u, "Broken Shield", 48 * 60 * 60 * 1000, questId);
-        updated = { ...updated, brokenShieldQuests: [...updated.brokenShieldQuests, questId] };
-        if (updated.debuffs.includes("Broken Shield")) {
-          toast("🛡️💔 Debuff: Broken Shield", { description: `-25% XP when quest "${quest.title}" is finally approved.` });
-        }
-        if (currentUser?.id === u.id) setCurrentUser(updated);
-        return updated;
-      }
-      return u;
-    }));
-  };
-
-  const approveQuest = (questId: string) => {
-    if (!currentUser) return;
-    const quest = quests.find(q => q.id === questId);
-    if (!quest || !quest.assignedTo) return;
-
-    setQuests(prev => prev.map(q =>
-      q.id === questId ? { ...q, status: "completed" as QuestStatus, completedAt: Date.now() } : q
-    ));
+    const { error } = await supabase.from('quests').update({ status: "accepted", submitted_at: null, was_rejected: true }).eq('id', questId);
+    if (error) return;
 
     const adventurer = users.find(u => u.id === quest.assignedTo);
-    if (!adventurer) return;
+    if (adventurer) {
+      let updated = addDebuff(adventurer, "Broken Shield", 48 * 60 * 60 * 1000, questId);
+      updated = { ...updated, brokenShieldQuests: [...updated.brokenShieldQuests, questId] };
+      if (updated.debuffs.includes("Broken Shield")) toast("🛡️💔 Debuff: Broken Shield", { description: `-25% XP when quest "${quest.title}" is finally approved.` });
+      await updateUserInDb(updated);
+    }
+    fetchQuests();
+  };
 
+const approveQuest = async (questId: string): Promise<void> => {
+  // 1. Validasi awal
+  if (!currentUser || currentUser.role !== "guild_master") {
+    toast.error("Hanya Guild Master yang bisa memberikan restu!");
+    return;
+  }
+
+  const quest = quests.find(q => q.id === questId);
+  if (!quest || !quest.assignedTo) return;
+
+  const adventurer = users.find(u => u.id === quest.assignedTo);
+  if (!adventurer) return;
+
+  const now = Date.now();
+
+  try {
+    // 2. Update status Quest di Supabase
+    const { error: questError } = await supabase
+      .from('quests')
+      .update({ 
+        status: "completed", 
+        completed_at: new Date(now).toISOString() 
+      })
+      .eq('id', questId);
+
+    if (questError) throw questError;
+
+    // 3. Kalkulasi XP
     const xpBreakdown = calcXpWithModifiers(adventurer, quest);
+    const newXp = adventurer.xp + xpBreakdown.totalXp;
+    const oldLevel = adventurer.level;
+    const newLevel = calcLevel(newXp);
+    
+    // 4. Buat objek user terupdate dengan basic stats
+    let updated: User = { 
+      ...adventurer, 
+      xp: newXp, 
+      level: newLevel, 
+      questsCompleted: adventurer.questsCompleted + 1, 
+      lastQuestCompletedAt: now 
+    };
 
-    setUsers(prev => prev.map(u => {
-      if (u.id === quest.assignedTo) {
-        const newXp = u.xp + xpBreakdown.totalXp;
-        let updated: User = {
-          ...u,
-          xp: newXp,
-          level: calcLevel(newXp),
-          questsCompleted: u.questsCompleted + 1,
-          lastQuestCompletedAt: Date.now(),
-        };
+    // 5. --- POP-UP LOGIKA ACHIEVEMENT ---
+    // Gue pakai 'buffs' sebagai array string medali user
+    setAchievements(prevAchievements => prevAchievements.map(ach => {
+      // Jika user sudah punya, skip
+      if (ach.unlockedBy.includes(adventurer.id)) return ach;
 
-        // Clear Rusty Equipment on completion
-        if (updated.rustyEquipment) {
-          updated = {
-            ...updated,
-            rustyEquipment: false,
-            activeDebuffs: updated.activeDebuffs.filter(d => d.name !== "Rusty Equipment"),
-            debuffs: updated.debuffs.filter(d => d !== "Rusty Equipment"),
-          };
-          toast("🔧 Rusty Equipment cleared!", { description: "You completed a quest — welcome back!" });
-        }
+      let unlocked = false;
+      if (ach.id === "first_quest" && updated.questsCompleted >= 1) unlocked = true;
+      if (ach.id === "five_quests" && updated.questsCompleted >= 5) unlocked = true;
+      if (ach.id === "level_10" && updated.level >= 10) unlocked = true;
+      if (ach.id === "legendary_slayer" && quest.difficulty === "legendary") unlocked = true;
 
-        // Decrement Stagnant Soul counter
-        if (updated.stagnantSoulCounter > 0) {
-          const newCount = updated.stagnantSoulCounter - 1;
-          updated = {
-            ...updated,
-            stagnantSoulCounter: newCount,
-            activeDebuffs: newCount <= 0
-              ? updated.activeDebuffs.filter(d => d.name !== "Stagnant Soul")
-              : updated.activeDebuffs.map(d => d.name === "Stagnant Soul" ? { ...d, remainingQuests: newCount } : d),
-          };
-          if (newCount <= 0) {
-            updated = { ...updated, debuffs: updated.debuffs.filter(d => d !== "Stagnant Soul") };
-            toast("⛓️ Stagnant Soul lifted!", { description: "Buffs are active again." });
-          } else {
-            toast("⛓️ Stagnant Soul", { description: `${newCount} quest(s) remaining under restriction.` });
-          }
-        }
-
-        // Remove broken shield for this quest
-        updated = { ...updated, brokenShieldQuests: updated.brokenShieldQuests.filter(id => id !== quest.id) };
-
-        // Clean expired
-        updated = cleanExpiredEffects(updated);
-
-        if (currentUser?.id === u.id) setCurrentUser(updated);
-        return updated;
+      if (unlocked) {
+        // Pop-up notifikasi achievement!
+        toast.success(`🏆 ACHIEVEMENT UNLOCKED: ${ach.title}!`);
+        // Tambahkan gelar ke profil user
+        updated.buffs = [...(updated.buffs || []), ach.title];
+        return { ...ach, unlockedBy: [...ach.unlockedBy, adventurer.id] };
       }
-      return u;
+      return ach;
     }));
 
-    // Show XP breakdown toast
-    const breakdownLines = [`Base XP: ${xpBreakdown.baseXp}`];
-    xpBreakdown.bonuses.forEach(b => breakdownLines.push(`+ ${b.amount} ${b.name}`));
-    xpBreakdown.penalties.forEach(p => breakdownLines.push(`- ${p.amount} ${p.name}`));
-    breakdownLines.push(`= ${xpBreakdown.totalXp} Total XP`);
+    // 6. --- POP-UP LOGIKA BUFF/DEBUFF SYNC ---
+    // Pastikan applyBuffsDebuffs return user objek yang lengkap
+    updated = applyBuffsDebuffs(updated, quest, now, quests);
+    
+    // Cleanup debuff broken shield
+    updated.brokenShieldQuests = (updated.brokenShieldQuests || []).filter(id => id !== quest.id);
+    // Bersihkan efek expired
+    updated = cleanExpiredEffects(updated);
 
-    toast(`⚔️ Quest Approved: ${quest.title}`, {
-      description: breakdownLines.join("\n"),
-      duration: 8000,
-    });
+    // 7. Simpan ke Database & Cek Berhasil/Tidak
+    const isSaveSuccess = await updateUserInDb(updated);
+    if (!isSaveSuccess) return; // Stop kalau gagal simpan ke DB
 
-    // Check achievements
-    if (adventurer) {
-      setAchievements(prev => prev.map(a => {
-        if (a.id === "first_quest" && adventurer.questsCompleted === 0 && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: First Blood!", { description: "Completed your first quest!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        if (a.id === "five_quests" && adventurer.questsCompleted === 4 && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: Seasoned Warrior!", { description: "Completed 5 quests!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        if (a.id === "ten_quests" && adventurer.questsCompleted === 9 && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: Veteran!", { description: "Completed 10 quests!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        if (a.id === "legendary" && quest.difficulty === "legendary" && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: Legend!", { description: "Completed a legendary quest!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        const newLevel = calcLevel(adventurer.xp + xpBreakdown.totalXp);
-        if (a.id === "level5" && newLevel >= 5 && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: Rising Star!", { description: "Reached level 5!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        if (a.id === "level10" && newLevel >= 10 && !a.unlockedBy.includes(adventurer.id)) {
-          toast("🏆 Achievement Unlocked: Elite Warrior!", { description: "Reached level 10!" });
-          return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-        }
-        if (a.id === "night_owl" && quest.submittedAt) {
-          const submitHour = new Date(quest.submittedAt).getHours();
-          if (submitHour >= 0 && submitHour < 5 && !a.unlockedBy.includes(adventurer.id)) {
-            toast("🏆 Achievement Unlocked: Night Owl!", { description: "Submitted in the dead of night!" });
-            return { ...a, unlockedBy: [...a.unlockedBy, adventurer.id] };
-          }
-        }
-        return a;
-      }));
+    // 8. PENTING: Update State Local React agar UI Dashboard Berubah
+    // Update data di list besar users
+    setUsers(prev => prev.map(u => u.id === adventurer.id ? updated : u));
+    
+    // Jika adventurer yang di-approve adalah user lo sendiri, update currentUser
+    if (currentUser.id === adventurer.id) {
+      setCurrentUser(updated);
     }
-  };
 
+    // 9. Feedback Visual (Level Up Toast)
+    if (newLevel > oldLevel) {
+      toast.success(`🎊 LEVEL UP! ${adventurer.username} reached Level ${newLevel}!`);
+    }
+
+    const details = [
+      `Base: ${xpBreakdown.baseXp}`,
+      ...xpBreakdown.bonuses.map(b => `+${b.amount} (${b.name})`),
+      ...xpBreakdown.penalties.map(p => `-${p.amount} (${p.name})`)
+    ].join(" | ");
+
+    toast(`⚔️ Quest Approved!`, { 
+      description: `${details} => Total: ${xpBreakdown.totalXp} XP`,
+      duration: 7000 
+    });
+    
+    // 10. Refresh list quest
+    fetchQuests();
+
+  } catch (error: any) {
+    console.error("⛔ ApproveQuest Error:", error);
+    toast.error("Gagal menyetujui quest: " + error.message);
+  }
+};
+
+// --- UTILS ---
   const sendMessage = (message: string) => {
     if (!currentUser) return;
-    setChatMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      userId: currentUser.id,
-      username: currentUser.username,
-      avatar: currentUser.avatar,
-      message,
-      timestamp: Date.now(),
-    }]);
+    setChatMessages(prev => [...prev, { id: crypto.randomUUID(), userId: currentUser.id, username: currentUser.username, avatar: currentUser.avatar, message, timestamp: Date.now() }]);
     const count = (messageCount[currentUser.id] || 0) + 1;
     setMessageCount(prev => ({ ...prev, [currentUser.id]: count }));
-    if (count >= 10) {
-      setAchievements(prev => prev.map(a =>
-        a.id === "social" && !a.unlockedBy.includes(currentUser.id)
-          ? (toast("🏆 Achievement Unlocked: Tavern Regular!", { description: "Sent 10 messages in the tavern!" }), { ...a, unlockedBy: [...a.unlockedBy, currentUser.id] })
-          : a
-      ));
+    if (count >= 10) setAchievements(prev => prev.map(a => a.id === "social" && !a.unlockedBy.includes(currentUser.id) ? (toast("🏆 Unlocked: Tavern Regular!"), { ...a, unlockedBy: [...a.unlockedBy, currentUser.id] }) : a));
+  };
+
+  const sendInvite = async (email: string) => {
+    if (!currentUser) return;
+    try {
+      const { data: targetUser, error: userError } = await supabase
+        .from('users')
+        .select('id, username, guild_id')
+        .eq('email', email)
+        .single();
+
+      if (userError || !targetUser) {
+        toast.error("Adventurer tidak ditemukan di database!");
+        return;
+      }
+
+      const { error: inviteError } = await supabase
+        .from('invitations')
+        .insert([{
+          guild_id: currentUser.guildId,
+          inviter_id: currentUser.id,
+          invitee_email: email,
+          status: 'pending'
+        }]);
+
+      if (inviteError) throw inviteError;
+      toast.success(`Magic Scroll dikirim ke ${email}!`);
+    } catch (error: any) {
+      console.error("Invite Error:", error);
+      toast.error("Gagal mengirim undangan.");
     }
   };
 
-  const inviteAdventurer = (email: string): string => {
-    const user = users.find(u => u.email === email && u.role === "adventurer");
-    if (user) return `${user.username} has joined the guild!`;
-    return "No adventurer found with that email.";
-  };
-
-  const changeAvatar = (avatar: string) => {
+  const acceptInvite = async (inviteID: string, guildId: string) => {
     if (!currentUser) return;
-    const updated = { ...currentUser, avatar };
-    setCurrentUser(updated);
-    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    try {
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({ guild_id: guildId })
+        .eq('id', currentUser.id);
+
+      if (userUpdateError) throw userUpdateError;
+
+      const { error: inviteUpdateError } = await supabase
+        .from('invitations')
+        .update({ status: 'accepted' })
+        .eq('id', inviteID);
+
+      if (inviteUpdateError) throw inviteUpdateError;
+
+      setCurrentUser({ ...currentUser, guildId });
+      toast.success("Huzzah! Lo resmi bergabung ke Guild.");
+      fetchQuests(); 
+    } catch (error: any) {
+      console.error("Accept Invite Error:", error);
+      toast.error("Gagal bergabung ke Guild.");
+    }
   };
 
-  return (
+  const changeAvatar = (avatar: string) => { if (currentUser) updateUserInDb({ ...currentUser, avatar }); };
+
+return (
     <GameContext.Provider value={{
-      currentUser, users, quests, chatMessages, achievements,
-      login, register, logout, createQuest, acceptQuest, submitQuest,
-      approveQuest, rejectQuest, sendMessage, inviteAdventurer, changeAvatar,
-      availableAvatars: AVATARS,
+      currentUser, 
+      users, 
+      quests, 
+      chatMessages, 
+      achievements,
+      login, 
+      register, 
+      logout, 
+      createQuest, 
+      acceptQuest, 
+      submitQuest,
+      approveQuest, 
+      rejectQuest, 
+      sendMessage,
+      sendInvite,      // 👈 Pastikan ini ada
+      acceptInvite,    // 👈 Pastikan ini ada
+      changeAvatar,
+      switchRole,      // 👈 Pastikan ini ada
+      availableAvatars: AVATARS
     }}>
       {children}
     </GameContext.Provider>

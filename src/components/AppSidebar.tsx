@@ -13,15 +13,18 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, RefreshCcw } from "lucide-react";
+import { InvitationInbox } from "./InvitationInbox"; // 👈 Pastikan path import sesuai tempat lo save filenya
 
 const AppSidebar = () => {
-  const { currentUser, logout } = useGame();
+  const { currentUser, logout, switchRole } = useGame();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
 
   const isGM = currentUser?.role === "guild_master";
+  
+  const canSwitch = currentUser?.isGuildMaster && currentUser?.isAdventurer;
 
   const navItems = [
     { title: "Quest Board", url: "/quests", icon: "📜" },
@@ -31,6 +34,12 @@ const AppSidebar = () => {
     { title: "Hall of Fame", url: "/fame", icon: "🏆" },
     { title: "Profile", url: "/profile", icon: "👤" },
   ];
+
+  const handleSwitchRole = () => {
+    if (!currentUser) return;
+    const targetRole = currentUser.role === "guild_master" ? "adventurer" : "guild_master";
+    switchRole(targetRole);
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -66,21 +75,52 @@ const AppSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-3">
-        {!collapsed && currentUser && (
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">{currentUser.avatar}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-heading text-gold truncate">{currentUser.username}</div>
-              <div className="text-xs text-muted-foreground">
-                Lv.{currentUser.level} • {currentUser.xp} XP
+      <SidebarFooter className="border-t border-border p-3 space-y-2">
+        {/* Profile & Invitation Section */}
+        {currentUser && (
+          <div className={`flex items-center gap-2 mb-2 p-1 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`flex items-center gap-2 overflow-hidden ${collapsed ? 'hidden' : ''}`}>
+              <span className="text-2xl shrink-0">{currentUser.avatar}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-heading text-gold truncate">{currentUser.username}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                  {currentUser.role.replace('_', ' ')}
+                </div>
               </div>
             </div>
+            
+            {/* Kotak Inbox Undangan */}
+            <InvitationInbox />
           </div>
         )}
-        <Button variant="ghost" size={collapsed ? "icon" : "default"} onClick={logout} className="w-full text-muted-foreground hover:text-crimson">
+
+        {/* Role Switcher Button */}
+        {canSwitch && (
+          <Button 
+            variant="outline" 
+            size={collapsed ? "icon" : "sm"} 
+            onClick={handleSwitchRole}
+            className="w-full border-gold/30 hover:border-gold hover:bg-gold/10 text-gold transition-all"
+            title={collapsed ? `Switch to ${isGM ? 'Adventurer' : 'Guild Master'}` : ""}
+          >
+            <RefreshCcw className={`h-4 w-4 ${collapsed ? "" : "mr-2"}`} />
+            {!collapsed && (
+              <span className="text-xs font-semibold">
+                Switch to {isGM ? "Adventurer" : "Guild Master"}
+              </span>
+            )}
+          </Button>
+        )}
+
+        {/* Logout Button */}
+        <Button 
+          variant="ghost" 
+          size={collapsed ? "icon" : "default"} 
+          onClick={logout} 
+          className="w-full text-muted-foreground hover:text-crimson hover:bg-crimson/5"
+        >
           <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Leave Hall</span>}
+          {!collapsed && <span className="ml-2 font-body">Leave Hall</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>
