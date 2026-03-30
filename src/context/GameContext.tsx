@@ -117,6 +117,7 @@ interface GameState {
   acceptInvite: (inviteId: string, guildId: string) => Promise<void>; // Tambah ini
   changeAvatar: (avatar: string) => void;
   switchRole: (newRole: Role) => Promise<void>; // 👈 Tambahan fungsi pindah role
+  kickMember: (memberId: string) => Promise<void>;
   availableAvatars: string[];
 }
 
@@ -179,18 +180,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 const fetchQuests = useCallback(async () => {
+  // 1. Validasi: Jangan narik data kalau user-nya belum ada sama sekali (lagi loading login)
   if (!currentUser) return;
 
-  // 1. Mulai query fresh
   let query = supabase.from('quests').select('*');
 
   // 2. Logic Filter:
   if (currentUser.guildId && currentUser.guildId !== "") {
-    // Jika punya guild, tarik yang guild_id-nya MATCHING
+    // Pastikan pakai .eq kalau guildId sudah valid (UUID)
     query = query.eq('guild_id', currentUser.guildId);
   } else {
-    // Jika tidak punya guild (Wanderer), tarik yang kosong/null
-    // Pake filter sederhana agar tidak bentrok
+    // Filter untuk Wanderer
     query = query.or('guild_id.is.null,guild_id.eq.""');
   }
 
@@ -219,9 +219,19 @@ const fetchQuests = useCallback(async () => {
   }));
   
   setQuests(mappedQuests);
-}, [currentUser?.guildId]); // Cukup pantau guildId-nya saja
+}, [currentUser?.id, currentUser?.guildId]); // Pantau perubahan ID dan GuildID
+
+// --- AUTO-FETCH TRIGGER ---
+// Efek ini memastikan quest ditarik ulang setiap kali status login/guild berubah
+useEffect(() => {
+  if (currentUser) {
+    fetchQuests();
+  }
+}, [currentUser?.id, currentUser?.guildId, fetchQuests]);
 
 const updateUserInDb = async (user: User) => {
+  if (!user.id) return false;
+
   const { error } = await supabase
     .from('users')
     .update({
@@ -233,6 +243,7 @@ const updateUserInDb = async (user: User) => {
       active_buffs: user.activeBuffs,
       active_debuffs: user.activeDebuffs,
       quests_completed: user.questsCompleted,
+      // Penting: simpan guild_id dengan format yang konsisten (null jika kosong)
       guild_id: user.guildId || null, 
       is_guild_master: user.isGuildMaster,
       is_adventurer: user.isAdventurer
@@ -243,6 +254,10 @@ const updateUserInDb = async (user: User) => {
     console.error("⛔ Gagal update data user di database:", error.message);
     return false;
   }
+  
+  // Optional: Panggil fetchUsers() setelah update berat agar state global sinkron
+  // await fetchUsers(); 
+  
   return true;
 };
 
@@ -816,7 +831,7 @@ const approveQuest = async (questId: string): Promise<void> => {
         }]);
 
       if (inviteError) throw inviteError;
-      toast.success(`Magic Scroll dikirim ke ${email}!`);
+      toast.success(`Raven has Been Sent to ${email}!`);
     } catch (error: any) {
       console.error("Invite Error:", error);
       toast.error("Gagal mengirim undangan.");
@@ -826,6 +841,7 @@ const approveQuest = async (questId: string): Promise<void> => {
   const acceptInvite = async (inviteID: string, guildId: string) => {
     if (!currentUser) return;
     try {
+      // 1. Update USER di Database
       const { error: userUpdateError } = await supabase
         .from('users')
         .update({ guild_id: guildId })
@@ -833,6 +849,7 @@ const approveQuest = async (questId: string): Promise<void> => {
 
       if (userUpdateError) throw userUpdateError;
 
+      // 2. Update Status Undangan di Database
       const { error: inviteUpdateError } = await supabase
         .from('invitations')
         .update({ status: 'accepted' })
@@ -840,8 +857,20 @@ const approveQuest = async (questId: string): Promise<void> => {
 
       if (inviteUpdateError) throw inviteUpdateError;
 
-      setCurrentUser({ ...currentUser, guildId });
-      toast.success("Huzzah! Lo resmi bergabung ke Guild.");
+      // 3. UPDATE STATE LOKAL & SYNC (PENTING!)
+      const updatedUser = { ...currentUser, guildId: guildId };
+      setCurrentUser(updatedUser);
+      
+      // Update juga di list users agar Hall of Fame langsung berubah
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+      
+      // Simpan ke localStorage biar pas refresh gak balik null
+      localStorage.setItem('game_user', JSON.stringify(updatedUser));
+
+      toast.success("Welcome to the Guild, Keeps your sword sharp and your wits sharper!");
+      
+      // Refresh data agar semua komponen dapet data terbaru
+      await fetchUsers(); 
       fetchQuests(); 
     } catch (error: any) {
       console.error("Accept Invite Error:", error);
@@ -850,6 +879,38 @@ const approveQuest = async (questId: string): Promise<void> => {
   };
 
   const changeAvatar = (avatar: string) => { if (currentUser) updateUserInDb({ ...currentUser, avatar }); };
+
+  // Kick Member Logic (Hanya untuk Guild Master)
+const kickMember = async (memberId: string) => {
+  // 1. Proteksi: Hanya Guild Master yang bisa nge-kick
+  if (currentUser?.role !== 'guild_master') {
+    toast.error("Only the Guild Master has the authority to banish members!");
+    return;
+  }
+
+  try {
+    // 2. Update di Database
+    const { error } = await supabase
+      .from('users')
+      .update({ guild_id: "" }) 
+      .eq('id', memberId);
+
+    if (error) throw error;
+
+    // 3. Update State Lokal
+    setUsers(prev => prev.map(u => 
+      u.id === memberId ? { ...u, guildId: "" } : u
+    ));
+    
+    toast.success("Adventurer has been Banished from the Guild!");
+    
+    // 4. Refresh data agar Hall of Fame & list member bersih
+    await fetchUsers(); 
+  } catch (err) {
+    console.error("Kick Error:", err);
+    toast.error("Failed to Banish Adventurer.");
+  }
+};
 
 return (
     <GameContext.Provider value={{
@@ -868,7 +929,8 @@ return (
       rejectQuest, 
       sendMessage,
       sendInvite,      // 👈 Pastikan ini ada
-      acceptInvite,    // 👈 Pastikan ini ada
+      acceptInvite,
+      kickMember,    // 👈 Pastikan ini ada
       changeAvatar,
       switchRole,      // 👈 Pastikan ini ada
       availableAvatars: AVATARS
