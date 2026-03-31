@@ -14,8 +14,6 @@ const HallOfFame = () => {
   const [memberToExile, setMemberToExile] = useState<User | null>(null);
 
   // FILTER LOGIC: 
-  // 1. Jika user punya Guild, tampilkan semua member yang Guild ID-nya sama.
-  // 2. Jika user TIDAK punya Guild, tampilkan hanya dirinya sendiri.
   const leaderboard = [...users]
     .filter((u) => {
       if (!currentUser?.guildId) {
@@ -96,17 +94,33 @@ const HallOfFame = () => {
                     <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded uppercase font-bold">GM</span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground font-body">
-                  Level {u.level} • {u.questsCompleted} quests
+                
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="text-xs text-muted-foreground font-body">
+                    Level {u.level} • {u.questsCompleted} quests
+                  </div>
+                  
+                  {u.achievements && u.achievements.length > 0 && (
+                    <div className="flex gap-1 ml-2 border-l border-white/10 pl-2">
+                      {u.achievements.map((title, idx) => {
+                        const achData = achievements.find(a => a.title === title || a.id === title);
+                        return achData ? (
+                          <span key={idx} title={achData.title} className="text-[10px] grayscale hover:grayscale-0 cursor-help transition-all">
+                            {achData.icon}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
               
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="font-heading text-gold text-sm">{u.xp} XP</div>
+                  <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Titles</div>
                 </div>
 
-                {/* Tombol Kick (Hanya untuk GM dan bukan untuk diri sendiri) */}
                 {currentUser?.role === "guild_master" && u.id !== currentUser.id && (
                   <Button
                     variant="ghost"
@@ -123,7 +137,6 @@ const HallOfFame = () => {
         </div>
       </div>
 
-      {/* Achievements Section */}
       <div className="mt-12">
         <h2 className="font-heading text-lg text-foreground mb-4 flex items-center gap-2">
           <Star className="h-5 w-5 text-gold" />
@@ -132,7 +145,16 @@ const HallOfFame = () => {
         
         <div className="grid gap-3 md:grid-cols-2">
           {achievements.map((a, i) => {
-            const unlocked = currentUser ? a.unlockedBy.includes(currentUser.id) : false;
+            // --- KUNCI UPDATE: CEK TITLE ATAU ID UNTUK FLEXIBILITAS ---
+            const isUnlockedInProfile = currentUser?.achievements?.some((userAch) => {
+            const normalizedDb = userAch.toLowerCase().replace(/_/g, " ").trim();
+            const normalizedTitle = a.title.toLowerCase().replace(/_/g, " ").trim();
+            const normalizedId = a.id.toLowerCase().replace(/_/g, " ").trim();
+
+  return normalizedDb === normalizedTitle || normalizedDb === normalizedId;
+});
+            const isUnlockedByState = a.unlockedBy?.includes(currentUser?.id || "");
+            const unlocked = isUnlockedInProfile || isUnlockedByState;
             
             return (
               <motion.div
@@ -170,15 +192,8 @@ const HallOfFame = () => {
             );
           })}
         </div>
-
-        {achievements.length === 0 && (
-          <p className="text-muted-foreground text-center py-10 font-body border border-dashed border-white/10 rounded-lg">
-            The scrolls of achievement are currently empty.
-          </p>
-        )}
       </div>
 
-      {/* RPG EXILE DIALOG COMPONENT */}
       <ExileDialog
         isOpen={isExileDialogOpen}
         onClose={closeExileDialog}
