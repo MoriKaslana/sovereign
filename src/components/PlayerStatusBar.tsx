@@ -50,6 +50,8 @@ const PlayerStatusBar = () => {
       return `${hours}h ${mins}m remaining`;
     }
     const entry = currentUser.activeBuffs?.find(e => e.name === name);
+    // PENGAMAN: Jika entry tidak ditemukan (misal pencapaian permanen), return teks default agar tidak crash
+    if (!entry) return "Until condition cleared"; 
     if (!entry.expiresAt) return "Until condition cleared";
     const remaining = entry.expiresAt - Date.now();
     if (remaining <= 0) return "Expiring...";

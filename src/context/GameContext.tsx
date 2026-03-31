@@ -158,7 +158,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const guildId = "sovereign-guild";
   // --- DATA FETCHERS (SUPABASE SYNC) ---
-  const fetchUsers = async () => {
+// --- DATA FETCHERS (SUPABASE SYNC) ---
+  const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase.from('users').select('*');
     if (!error && data) {
       const mapped: User[] = data.map(u => ({
@@ -166,20 +167,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         xp: u.xp || 0, level: u.level || 1, buffs: u.buffs || [], debuffs: u.debuffs || [],
         activeBuffs: u.active_buffs || [], activeDebuffs: u.active_debuffs || [],
         guildId: u.guild_id, questsCompleted: u.quests_completed || 0,
-        joinedAt: u.joined_at || Date.now(), lastQuestCompletedAt: u.last_quest_completed_at,
+        joinedAt: u.joined_at || Date.now(), 
+        // Pastikan jadi angka (number) biar nggak error BigInt
+        lastQuestCompletedAt: u.last_quest_completed_at ? Number(u.last_quest_completed_at) : null,
         consecutiveLateCount: u.consecutive_late_count || 0, debuffImmunity: u.debuff_immunity || false,
         stagnantSoulCounter: u.stagnant_soul_counter || 0, rustyEquipment: u.rusty_equipment || false,
         brokenShieldQuests: u.broken_shield_quests || [],
-        isGuildMaster: u.is_guild_master || false, // 👈 Sesuai DB
-        isAdventurer: u.is_adventurer || false,     // 👈 Sesuai DB
-        availableRoles: [ // 👈 Mapping boolean ke array string
+        isGuildMaster: u.is_guild_master || false, 
+        isAdventurer: u.is_adventurer || false,     
+        availableRoles: [ 
           ...(u.is_guild_master ? ['guild_master'] : []),
           ...(u.is_adventurer ? ['adventurer'] : []),
         ] as Role[]
       }));
       setUsers(mapped);
     }
-  };
+  }, []); // <-- Kunci biar nggak infinite loop
 
 const fetchQuests = useCallback(async () => {
   // 1. Validasi: Jangan narik data kalau user-nya belum ada sama sekali (lagi loading login)
@@ -223,46 +226,106 @@ const fetchQuests = useCallback(async () => {
   setQuests(mappedQuests);
 }, [currentUser?.id, currentUser?.guildId]); // Pantau perubahan ID dan GuildID
 
-// --- AUTO-FETCH TRIGGER ---
-// Efek ini memastikan quest ditarik ulang setiap kali status login/guild berubah
-useEffect(() => {
-  if (currentUser) {
+// --- REALTIME SYNC (SATPAM GLOBAL) ---
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    console.log("📡 Memasang Satpam Realtime untuk User:", currentUser.username);
+
+    // 1. Ambil data awal biar gak kosong
     fetchQuests();
-  }
-}, [currentUser?.id, currentUser?.guildId, fetchQuests]);
+    fetchUsers();
 
+    // 2. Listener Data User
+    const userChannel = supabase
+      .channel(`user-changes-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${currentUser.id}` },
+        (payload) => {
+          console.log("🎁 DATA USER BERUBAH DI DB!", payload.new);
+          const updated = payload.new as any;
+          
+          setCurrentUser(prev => {
+            if (!prev) return null;
+            const newUser = {
+              ...prev,
+              xp: updated.xp,
+              level: updated.level,
+              buffs: updated.buffs || [],
+              debuffs: updated.debuffs || [],
+              activeBuffs: updated.active_buffs || [],
+              activeDebuffs: updated.active_debuffs || [],
+              questsCompleted: updated.quests_completed,
+              guildId: updated.guild_id || "",
+              lastQuestCompletedAt: updated.last_quest_completed_at ? Number(updated.last_quest_completed_at) : null
+            };
+            localStorage.setItem('game_user', JSON.stringify(newUser));
+            return newUser;
+          });
+        }
+      )
+      .subscribe();
+
+    // 3. Listener Quests
+    const questChannel = supabase
+      .channel('quest-global-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quests' },
+        (payload) => {
+          console.log("📜 ADA PERUBAHAN QUEST!", payload.eventType);
+          fetchQuests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("🔌 Melepas Satpam Realtime");
+      supabase.removeChannel(userChannel);
+      supabase.removeChannel(questChannel);
+    };
+    // PENTING: Cuma pantau currentUser.id! Jangan masukin fetchUsers atau fetchQuests di sini.
+  }, [currentUser?.id]);
+
+  // --- DATABASE HELPER (Fungsi yang tadi merah) ---
 const updateUserInDb = async (user: User) => {
-  if (!user.id) return false;
+    if (!user.id) return false;
 
-  const { error } = await supabase
-    .from('users')
-    .update({
-      xp: user.xp,
-      level: user.level,
-      last_quest_completed_at: user.lastQuestCompletedAt, 
-      buffs: user.buffs,
-      debuffs: user.debuffs,
-      active_buffs: user.activeBuffs,
-      active_debuffs: user.activeDebuffs,
-      quests_completed: user.questsCompleted,
-      // Penting: simpan guild_id dengan format yang konsisten (null jika kosong)
-      guild_id: user.guildId || null, 
-      is_guild_master: user.isGuildMaster,
-      is_adventurer: user.isAdventurer
-    })
-    .eq('id', user.id);
+    const { error } = await supabase
+      .from('users')
+      .update({
+        xp: user.xp,
+        level: user.level,
+        last_quest_completed_at: user.lastQuestCompletedAt, 
+        buffs: user.buffs,
+        debuffs: user.debuffs,
+        active_buffs: user.activeBuffs,
+        active_debuffs: user.activeDebuffs,
+        quests_completed: user.questsCompleted,
+        guild_id: user.guildId || null, 
+        is_guild_master: user.isGuildMaster,
+        is_adventurer: user.isAdventurer
+      })
+      .eq('id', user.id);
 
-  if (error) {
-    console.error("⛔ Gagal update data user di database:", error.message);
-    return false;
-  }
-  
-  // Optional: Panggil fetchUsers() setelah update berat agar state global sinkron
-  // await fetchUsers(); 
-  
-  return true;
-};
+    if (error) {
+      console.error("⛔ Gagal update database:", error.message);
+      return false;
+    }
+    
+    // --- SINKRONISASI TOTAL (ANTI-REFRESH) ---
+    // 1. Update list users global (Biar GM liat data baru si Adventurer)
+    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
 
+    // 2. Update currentUser JIKA yang diupdate adalah diri sendiri
+    if (currentUser?.id === user.id) {
+      setCurrentUser(user);
+      localStorage.setItem('game_user', JSON.stringify(user));
+    }
+    
+    return true;
+  };
   // --- PERSISTENCE LOGIC ---
   useEffect(() => {
     const savedUser = localStorage.getItem('game_user');
@@ -716,25 +779,25 @@ const approveQuest = async (questId: string): Promise<void> => {
 
     if (questError) throw questError;
 
-    // 3. Kalkulasi XP
+    // 3. Kalkulasi XP & Level Baru
     const xpBreakdown = calcXpWithModifiers(adventurer, quest);
     const newXp = adventurer.xp + xpBreakdown.totalXp;
     const oldLevel = adventurer.level;
     const newLevel = calcLevel(newXp);
     
-    // 4. Buat objek user terupdate dengan basic stats
+    // 4. Buat objek user terupdate
     let updated: User = { 
       ...adventurer, 
       xp: newXp, 
       level: newLevel, 
-      questsCompleted: adventurer.questsCompleted + 1, 
+      questsCompleted: (adventurer.questsCompleted || 0) + 1, 
       lastQuestCompletedAt: now 
     };
 
-    // 5. --- POP-UP LOGIKA ACHIEVEMENT ---
-    // Gue pakai 'buffs' sebagai array string medali user
+    // 5. --- LOGIKA ACHIEVEMENT (PENTING: Kita update state achievements juga) ---
+    let newUnlockedAchievements: string[] = [];
+    
     setAchievements(prevAchievements => prevAchievements.map(ach => {
-      // Jika user sudah punya, skip
       if (ach.unlockedBy.includes(adventurer.id)) return ach;
 
       let unlocked = false;
@@ -744,59 +807,42 @@ const approveQuest = async (questId: string): Promise<void> => {
       if (ach.id === "legendary_slayer" && quest.difficulty === "legendary") unlocked = true;
 
       if (unlocked) {
-        // Pop-up notifikasi achievement!
         toast.success(`🏆 ACHIEVEMENT UNLOCKED: ${ach.title}!`);
-        // Tambahkan gelar ke profil user
-        updated.buffs = [...(updated.buffs || []), ach.title];
+        newUnlockedAchievements.push(ach.title);
         return { ...ach, unlockedBy: [...ach.unlockedBy, adventurer.id] };
       }
       return ach;
     }));
 
-    // 6. --- POP-UP LOGIKA BUFF/DEBUFF SYNC ---
-    // Pastikan applyBuffsDebuffs return user objek yang lengkap
+    // Masukkan medali baru ke array buffs user
+    if (newUnlockedAchievements.length > 0) {
+      updated.buffs = [...(updated.buffs || []), ...newUnlockedAchievements];
+    }
+
+    // 6. Buff & Debuff Logic
     updated = applyBuffsDebuffs(updated, quest, now, quests);
-    
-    // Cleanup debuff broken shield
-    updated.brokenShieldQuests = (updated.brokenShieldQuests || []).filter(id => id !== quest.id);
-    // Bersihkan efek expired
+    if (updated.brokenShieldQuests) {
+      updated.brokenShieldQuests = updated.brokenShieldQuests.filter(id => id !== quest.id);
+    }
     updated = cleanExpiredEffects(updated);
 
-    // 7. Simpan ke Database & Cek Berhasil/Tidak
+// 7. Simpan ke Database
     const isSaveSuccess = await updateUserInDb(updated);
-    if (!isSaveSuccess) return; // Stop kalau gagal simpan ke DB
+    if (!isSaveSuccess) return; 
 
-    // 8. PENTING: Update State Local React agar UI Dashboard Berubah
-    // Update data di list besar users
-    setUsers(prev => prev.map(u => u.id === adventurer.id ? updated : u));
-    
-    // Jika adventurer yang di-approve adalah user lo sendiri, update currentUser
-    if (currentUser.id === adventurer.id) {
-      setCurrentUser(updated);
+    // 8. Trigger Notifikasi Level Up
+    if (newLevel > adventurer.level) {
+      toast.success(`🎊 LEVEL UP! ${adventurer.username} naik ke Level ${newLevel}!`);
     }
 
-    // 9. Feedback Visual (Level Up Toast)
-    if (newLevel > oldLevel) {
-      toast.success(`🎊 LEVEL UP! ${adventurer.username} reached Level ${newLevel}!`);
-    }
-
-    const details = [
-      `Base: ${xpBreakdown.baseXp}`,
-      ...xpBreakdown.bonuses.map(b => `+${b.amount} (${b.name})`),
-      ...xpBreakdown.penalties.map(p => `-${p.amount} (${p.name})`)
-    ].join(" | ");
-
-    toast(`⚔️ Quest Approved!`, { 
-      description: `${details} => Total: ${xpBreakdown.totalXp} XP`,
-      duration: 7000 
-    });
+    toast.success(`⚔️ Quest "${quest.title}" Approved!`);
     
-    // 10. Refresh list quest
-    fetchQuests();
-
+    // 9. REFRESH LIST QUEST (WAJIB biar status berubah di UI)
+    await fetchQuests();
+    
   } catch (error: any) {
     console.error("⛔ ApproveQuest Error:", error);
-    toast.error("Gagal menyetujui quest: " + error.message);
+    toast.error("Gagal menyetujui quest");
   }
 };
 
