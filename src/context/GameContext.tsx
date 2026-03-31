@@ -67,11 +67,13 @@ export interface Quest {
 
 export interface ChatMessage {
   id: string;
-  userId: string;
+  created_at: string;
+  content: string;
+  user_id: string;
   username: string;
   avatar: string;
-  message: string;
-  timestamp: number;
+  role: string;
+  guild_id: string;
 }
 
 export interface Achievement {
@@ -112,7 +114,7 @@ interface GameState {
   submitQuest: (questId: string) => Promise<void>;
   approveQuest: (questId: string) => Promise<void>;
   rejectQuest: (questId: string) => Promise<void>;
-  sendMessage: (message: string) => void;
+  sendMessage: (content: string) => Promise<void>;
   sendInvite: (email: string) => Promise<void>; // Ganti ini
   acceptInvite: (inviteId: string, guildId: string) => Promise<void>; // Tambah ini
   changeAvatar: (avatar: string) => void;
@@ -798,13 +800,75 @@ const approveQuest = async (questId: string): Promise<void> => {
   }
 };
 
-// --- UTILS ---
-  const sendMessage = (message: string) => {
-    if (!currentUser) return;
-    setChatMessages(prev => [...prev, { id: crypto.randomUUID(), userId: currentUser.id, username: currentUser.username, avatar: currentUser.avatar, message, timestamp: Date.now() }]);
-    const count = (messageCount[currentUser.id] || 0) + 1;
-    setMessageCount(prev => ({ ...prev, [currentUser.id]: count }));
-    if (count >= 10) setAchievements(prev => prev.map(a => a.id === "social" && !a.unlockedBy.includes(currentUser.id) ? (toast("🏆 Unlocked: Tavern Regular!"), { ...a, unlockedBy: [...a.unlockedBy, currentUser.id] }) : a));
+// 1. Fungsi Ambil Chat Khusus Guild Sendiri
+  const fetchGuildMessages = useCallback(async () => {
+    if (!currentUser?.guildId) return; // Menggunakan guildId (camelCase) sesuai data interface User lo
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('guild_id', currentUser.guildId) // Filter kolom guild_id di DB agar hanya membaca chat milik guild sendiri
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (!error && data) {
+      setChatMessages(data as ChatMessage[]);
+    }
+  }, [currentUser?.guildId]);
+
+  // 2. Efek untuk Panggil Fetch dan Pasang Listener Realtime Khusus Guild
+  useEffect(() => {
+    if (!currentUser?.guildId) return;
+
+    fetchGuildMessages();
+
+    // Pasang telinga hanya untuk INSERT di tabel chat_messages dengan guild_id yang sama
+    const channel = supabase
+      .channel(`guild-room-${currentUser.guildId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `guild_id=eq.${currentUser.guildId}`
+        },
+        (payload) => {
+          const newMsg = payload.new as ChatMessage;
+          setChatMessages((prev) => {
+            // Mencegah duplikasi data jika kebetulan masuk double
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.guildId, fetchGuildMessages]);
+
+  // 3. Fungsi Kirim Pesan Sesuai Struktur Tabel Lo
+  const sendMessage = async (content: string) => {
+    if (!currentUser?.guildId) {
+      toast.error("Kamu harus masuk Guild dulu untuk ngobrol di Tavern!");
+      return;
+    }
+
+    const { error } = await supabase.from('chat_messages').insert([{
+      content: content,
+      user_id: currentUser.id,
+      username: currentUser.username,
+      avatar: currentUser.avatar || "👤",
+      role: currentUser.role,
+      guild_id: currentUser.guildId
+    }]);
+
+    if (error) {
+      console.error("Gagal kirim chat:", error);
+      toast.error("Failed to send message");
+    }
   };
 
   const sendInvite = async (email: string) => {

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useGame } from "@/context/GameContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Send, Lock } from "lucide-react";
 
 const Tavern = () => {
   const { chatMessages, sendMessage, currentUser } = useGame();
@@ -21,6 +21,19 @@ const Tavern = () => {
     setMsg("");
   };
 
+  // Proteksi: Jika user belum memiliki Guild
+  if (!currentUser?.guildId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] p-10 text-center opacity-60">
+        <Lock className="h-12 w-12 mb-4 text-gold" />
+        <h2 className="text-xl font-heading text-gold mb-2">Akses Terbatas</h2>
+        <p className="font-body text-sm text-white/70">
+          Kamu harus bergabung dengan Guild terlebih dahulu untuk memasuki Tavern rahasia ini.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-3rem)] max-w-3xl mx-auto">
       <div className="p-6 pb-0">
@@ -33,7 +46,8 @@ const Tavern = () => {
           <p className="text-center text-muted-foreground font-body py-12">The tavern is quiet... be the first to speak!</p>
         )}
         {chatMessages.map(m => {
-          const isMine = m.userId === currentUser?.id;
+          // DISESUAIKAN: Menggunakan user_id dari Supabase
+          const isMine = m.user_id === currentUser?.id;
           return (
             <motion.div
               key={m.id}
@@ -41,10 +55,11 @@ const Tavern = () => {
               animate={{ opacity: 1, y: 0 }}
               className={`flex items-start gap-3 ${isMine ? "flex-row-reverse" : ""}`}
             >
-              <div className="text-2xl shrink-0">{m.avatar}</div>
+              <div className="text-2xl shrink-0">{m.avatar || "👤"}</div>
               <div className={`scroll-card rounded-lg px-4 py-2.5 max-w-[70%] ${isMine ? "border-gold/20" : ""}`}>
                 <div className="text-xs text-gold font-heading mb-1">{m.username}</div>
-                <p className="text-sm text-foreground font-body">{m.message}</p>
+                {/* DISESUAIKAN: Menggunakan content dari Supabase */}
+                <p className="text-sm text-foreground font-body">{m.content}</p>
               </div>
             </motion.div>
           );
