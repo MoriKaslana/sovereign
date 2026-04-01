@@ -21,6 +21,30 @@ export interface DebuffEntry {
   remainingQuests?: number; // for quest-count-based debuffs like Stagnant Soul
 }
 
+// Tambahan Interface untuk Master Data dari DB
+export interface MasterBuff {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface MasterDebuff {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  xp_reward?: number;
+  unlockedBy: string[]; // Tetap ada untuk UI state
+}
+
 export interface User {
   id: string;
   email: string;
@@ -39,13 +63,13 @@ export interface User {
   joinedAt: number;
   lastQuestCompletedAt: number | null;
   consecutiveLateCount: number;
-  debuffImmunity: boolean; // from Aura of Purity
-  stagnantSoulCounter: number; // quests remaining under Stagnant Soul
-  rustyEquipment: boolean; // grayscale + buffs disabled
-  brokenShieldQuests: string[]; // quest IDs with -25% penalty
-  isGuildMaster: boolean; // 👈 Tambahan untuk sinkronisasi DB
-  isAdventurer: boolean;   // 👈 Tambahan untuk sinkronisasi DB
-  availableRoles: Role[]; // 👈 Tambahan untuk sinkronisasi DB
+  debuffImmunity: boolean; 
+  stagnantSoulCounter: number; 
+  rustyEquipment: boolean; 
+  brokenShieldQuests: string[]; 
+  isGuildMaster: boolean; 
+  isAdventurer: boolean;   
+  availableRoles: Role[]; 
 }
 
 export interface Quest {
@@ -77,46 +101,14 @@ export interface ChatMessage {
   guild_id: string;
 }
 
-export interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  unlockedBy: string[];
-}
-
-const AVATARS = ["⚔️", "🛡️", "🧙", "🏹", "🗡️", "🔮", "🐉", "🦅", "🐺", "🦁"];
-
-const DEFAULT_ACHIEVEMENTS: Achievement[] = [
-  // Nama disesuaikan dengan logic "First Quest"
-  { id: "first_quest", title: "First Quest", description: "Complete your first quest", icon: "⚔️", unlockedBy: [] },
-  
-  // Nama disesuaikan dengan logic "Five Quests"
-  { id: "five_quests", title: "Elite Contributor", description: "Complete 5 quests", icon: "🛡️", unlockedBy: [] },
-  
-  { id: "ten_quests", title: "Veteran", description: "Complete 10 quests", icon: "🏅", unlockedBy: [] },
-  { id: "speed_demon", title: "Speed Demon", description: "Submit a quest within 1 hour", icon: "⚡", unlockedBy: [] },
-  
-  // Nama disesuaikan dengan logic "Legendary Slayer"
-  { id: "legendary", title: "Legendary Slayer", description: "Complete a legendary quest", icon: "👑", unlockedBy: [] },
-  
-  { id: "social", title: "Tavern Regular", description: "Send 10 messages in the tavern", icon: "🍻", unlockedBy: [] },
-  { id: "level5", title: "Rising Star", description: "Reach level 5", icon: "⭐", unlockedBy: [] },
-  
-  // Nama disesuaikan dengan logic "Level 10"
-  { id: "level10", title: "Level 10", description: "Reach level 10", icon: "💎", unlockedBy: [] },
-  
-  { id: "streak3", title: "Hat Trick", description: "Complete 3 quests in a row without a debuff", icon: "🎯", unlockedBy: [] },
-  { id: "all_difficulties", title: "Jack of All Trades", description: "Complete one quest of each difficulty", icon: "🃏", unlockedBy: [] },
-  { id: "night_owl", title: "Night Owl", description: "Submit a quest between midnight and 5 AM", icon: "🦉", unlockedBy: [] },
-];
-
 interface GameState {
   currentUser: User | null;
   users: User[];
   quests: Quest[];
   chatMessages: ChatMessage[];
   achievements: Achievement[];
+  masterBuffs: MasterBuff[];     // 👈 Master Data Diexpose
+  masterDebuffs: MasterDebuff[]; // 👈 Master Data Diexpose
   login: (identifier: string, password: string) => Promise<boolean>;
   register: (email: string, username: string, password: string, role: Role) => Promise<boolean>;
   logout: () => void;
@@ -126,10 +118,10 @@ interface GameState {
   approveQuest: (questId: string) => Promise<void>;
   rejectQuest: (questId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
-  sendInvite: (email: string) => Promise<void>; // Ganti ini
-  acceptInvite: (inviteId: string, guildId: string) => Promise<void>; // Tambah ini
+  sendInvite: (email: string) => Promise<void>; 
+  acceptInvite: (inviteId: string, guildId: string) => Promise<void>; 
   changeAvatar: (avatar: string) => void;
-  switchRole: (newRole: Role) => Promise<void>; // 👈 Tambahan fungsi pindah role
+  switchRole: (newRole: Role) => Promise<void>; 
   kickMember: (memberId: string) => Promise<void>;
   availableAvatars: string[];
 }
@@ -158,18 +150,59 @@ const XP_MAP: Record<QuestDifficulty, number> = {
 const BUFF_DURATION = 24 * 60 * 60 * 1000; // 24 hours default
 const CHAIN_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
 
+const AVATARS = ["⚔️", "🛡️", "🧙", "🏹", "🗡️", "🔮", "🐉", "🦅", "🐺", "🦁"];
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [credentials, setCredentials] = useState<Credentials[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>(DEFAULT_ACHIEVEMENTS);
+  
+  // State Dinamis untuk Kamus Data dari Database
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [masterBuffs, setMasterBuffs] = useState<MasterBuff[]>([]);
+  const [masterDebuffs, setMasterDebuffs] = useState<MasterDebuff[]>([]);
+  
   const [messageCount, setMessageCount] = useState<Record<string, number>>({});
-
   const guildId = "sovereign-guild";
-// --- DATA FETCHERS (SUPABASE SYNC) ---
-const fetchUsers = useCallback(async () => {
+
+  // --- FETCH MASTER DATA DICTIONARY (NO MORE HARDCODE) ---
+  const fetchMasterData = useCallback(async () => {
+    try {
+      const [achRes, buffRes, debuffRes] = await Promise.all([
+        supabase.from('achievements').select('*'),
+        supabase.from('buffs').select('*'),
+        supabase.from('debuffs').select('*')
+      ]);
+
+      if (achRes.data) {
+        setAchievements(achRes.data.map(a => ({
+          id: a.id,
+          title: a.title,
+          description: a.description,
+          icon: a.icon,
+          xp_reward: a.xp_reward,
+          unlockedBy: [] // Akan diisi dinamis oleh listener realtime / sinkronisasi users
+        })));
+      }
+      if (buffRes.data) {
+        setMasterBuffs(buffRes.data.map(b => ({
+          id: b.id, title: b.title, description: b.description, icon: b.icon
+        })));
+      }
+      if (debuffRes.data) {
+        setMasterDebuffs(debuffRes.data.map(d => ({
+          id: d.id, title: d.title, description: d.description, icon: d.icon
+        })));
+      }
+    } catch (error) {
+      console.error("Gagal menarik master data:", error);
+    }
+  }, []);
+
+  // --- DATA FETCHERS (SUPABASE SYNC) ---
+  const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase.from('users').select('*');
     if (!error && data) {
       const mapped: User[] = data.map(u => ({
@@ -178,7 +211,7 @@ const fetchUsers = useCallback(async () => {
         username: u.username, 
         role: u.role as Role, 
         avatar: u.avatar,
-        achievements: u.achievements || [], // <-- Pastikan ini ditarik
+        achievements: u.achievements || [],
         xp: u.xp || 0, 
         level: u.level || 1, 
         buffs: u.buffs || [], 
@@ -204,14 +237,13 @@ const fetchUsers = useCallback(async () => {
       
       setUsers(mapped);
 
-      // --- SINKRONISASI DATA USER YG SEDANG LOGIN ---
+      // SINKRONISASI DATA USER YG SEDANG LOGIN
       const storedUser = localStorage.getItem('game_user');
       if (storedUser) {
         const currentLocal = JSON.parse(storedUser);
         const myUpdatedData = mapped.find(u => u.id === currentLocal.id);
 
         if (myUpdatedData) {
-          // Update state UI secara cerdas (hanya jika ada perubahan)
           setCurrentUser(prev => {
             const hasChanged = !prev || 
               prev.xp !== myUpdatedData.xp || 
@@ -219,7 +251,6 @@ const fetchUsers = useCallback(async () => {
               prev.achievements?.length !== myUpdatedData.achievements?.length;
 
             if (hasChanged) {
-              // Update localStorage juga biar pas refresh datanya tetap yg terbaru
               localStorage.setItem('game_user', JSON.stringify(myUpdatedData));
               return myUpdatedData;
             }
@@ -230,68 +261,75 @@ const fetchUsers = useCallback(async () => {
     }
   }, []);
 
-const fetchQuests = useCallback(async () => {
-  // 1. Validasi: Jangan narik data kalau user-nya belum ada sama sekali (lagi loading login)
-  if (!currentUser) return;
+  const fetchQuests = useCallback(async () => {
+    if (!currentUser) return;
 
-  let query = supabase.from('quests').select('*');
+    let query = supabase.from('quests').select('*');
 
-  // 2. Logic Filter:
-  if (currentUser.guildId && currentUser.guildId !== "") {
-    // Pastikan pakai .eq kalau guildId sudah valid (UUID)
-    query = query.eq('guild_id', currentUser.guildId);
-  } else {
-    // Filter untuk Wanderer
-    query = query.or('guild_id.is.null,guild_id.eq.""');
-  }
+    if (currentUser.guildId && currentUser.guildId !== "") {
+      query = query.eq('guild_id', currentUser.guildId);
+    } else {
+      query = query.or('guild_id.is.null,guild_id.eq.""');
+    }
 
-  const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('created_at', { ascending: false });
 
-  if (error) {
-    console.error("Error fetching quests:", error);
-    return;
-  }
-  
-  const mappedQuests: Quest[] = data.map(q => ({
-    id: q.id,
-    title: q.title,
-    description: q.description,
-    difficulty: q.difficulty as QuestDifficulty,
-    xpReward: q.xp_reward || 0,
-    deadline: q.deadline,
-    createdBy: q.created_by,
-    assignedTo: q.assigned_to,
-    status: q.status as QuestStatus,
-    createdAt: new Date(q.created_at).getTime(),
-    acceptedAt: q.accepted_at ? new Date(q.accepted_at).getTime() : null,
-    submittedAt: q.submitted_at ? new Date(q.submitted_at).getTime() : null,
-    completedAt: q.completed_at ? new Date(q.completed_at).getTime() : null,
-    guildId: q.guild_id || "", 
-  }));
-  
-  setQuests(mappedQuests);
-}, [currentUser?.id, currentUser?.guildId]); // Pantau perubahan ID dan GuildID
+    if (error) {
+      console.error("Error fetching quests:", error);
+      return;
+    }
+    
+    const mappedQuests: Quest[] = data.map(q => ({
+      id: q.id,
+      title: q.title,
+      description: q.description,
+      difficulty: q.difficulty as QuestDifficulty,
+      xpReward: q.xp_reward || 0,
+      deadline: q.deadline,
+      createdBy: q.created_by,
+      assignedTo: q.assigned_to,
+      status: q.status as QuestStatus,
+      createdAt: new Date(q.created_at).getTime(),
+      acceptedAt: q.accepted_at ? new Date(q.accepted_at).getTime() : null,
+      submittedAt: q.submitted_at ? new Date(q.submitted_at).getTime() : null,
+      completedAt: q.completed_at ? new Date(q.completed_at).getTime() : null,
+      guildId: q.guild_id || "", 
+    }));
+    
+    setQuests(mappedQuests);
+  }, [currentUser?.id, currentUser?.guildId]);
 
-// --- REALTIME SYNC (SATPAM GLOBAL) ---
+  // --- SINKRONISASI OTOMATIS ACHIEVEMENT UI ---
+  // Menjamin array 'unlockedBy' di UI selalu up to date tiap ada perubahan di list users
+  useEffect(() => {
+    if (users.length > 0 && achievements.length > 0) {
+      setAchievements(prev => {
+        let isChanged = false;
+        const next = prev.map(ach => {
+          const unlocked = users.filter(u => u.achievements?.includes(ach.id)).map(u => u.id);
+          if (unlocked.length !== ach.unlockedBy?.length) isChanged = true;
+          return { ...ach, unlockedBy: unlocked };
+        });
+        return isChanged ? next : prev;
+      });
+    }
+  }, [users]); // 👈 Trigger tiap users direfresh
+
+
+  // --- REALTIME SYNC (SATPAM GLOBAL) ---
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    console.log("📡 Memasang Satpam Realtime untuk User:", currentUser.username);
-
-    // 1. Ambil data awal biar gak kosong
     fetchQuests();
     fetchUsers();
 
-    // 2. Listener Data User
     const userChannel = supabase
       .channel(`user-changes-${currentUser.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${currentUser.id}` },
         (payload) => {
-          console.log("🎁 DATA USER BERUBAH DI DB!", payload.new);
           const updated = payload.new as any;
-          
           setCurrentUser(prev => {
             if (!prev) return null;
             const newUser = {
@@ -302,6 +340,7 @@ const fetchQuests = useCallback(async () => {
               debuffs: updated.debuffs || [],
               activeBuffs: updated.active_buffs || [],
               activeDebuffs: updated.active_debuffs || [],
+              achievements: updated.achievements || [], // Sinkronkan achievements juga
               questsCompleted: updated.quests_completed,
               guildId: updated.guild_id || "",
               lastQuestCompletedAt: updated.last_quest_completed_at ? Number(updated.last_quest_completed_at) : null
@@ -313,69 +352,59 @@ const fetchQuests = useCallback(async () => {
       )
       .subscribe();
 
-    // 3. Listener Quests
     const questChannel = supabase
       .channel('quest-global-sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'quests' },
-        (payload) => {
-          console.log("📜 ADA PERUBAHAN QUEST!", payload.eventType);
-          fetchQuests();
-        }
+        (payload) => fetchQuests()
       )
       .subscribe();
 
     return () => {
-      console.log("🔌 Melepas Satpam Realtime");
       supabase.removeChannel(userChannel);
       supabase.removeChannel(questChannel);
     };
-    // PENTING: Cuma pantau currentUser.id! Jangan masukin fetchUsers atau fetchQuests di sini.
   }, [currentUser?.id]);
 
-  // --- DATABASE HELPER (Fungsi yang tadi merah) ---
-const updateUserInDb = async (user: User) => {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({
-        xp: user.xp,
-        level: user.level,
-        buffs: user.buffs,
-        debuffs: user.debuffs,
-        active_buffs: user.activeBuffs,
-        active_debuffs: user.activeDebuffs,
-        quests_completed: user.questsCompleted,
-        last_quest_completed_at: user.lastQuestCompletedAt,
-        consecutive_late_count: user.consecutiveLateCount,
-        stagnant_soul_counter: user.stagnantSoulCounter,
-        rusty_equipment: user.rustyEquipment,
-        broken_shield_quests: user.brokenShieldQuests,
-        // TAMBAHKAN BARIS INI BRE:
-        achievements: user.achievements 
-      })
-      .eq('id', user.id);
+  // --- DATABASE HELPER ---
+  const updateUserInDb = async (user: User) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          xp: user.xp,
+          level: user.level,
+          buffs: user.buffs,
+          debuffs: user.debuffs,
+          active_buffs: user.activeBuffs,
+          active_debuffs: user.activeDebuffs,
+          quests_completed: user.questsCompleted,
+          last_quest_completed_at: user.lastQuestCompletedAt,
+          consecutive_late_count: user.consecutiveLateCount,
+          stagnant_soul_counter: user.stagnantSoulCounter,
+          rusty_equipment: user.rustyEquipment,
+          broken_shield_quests: user.brokenShieldQuests,
+          achievements: user.achievements 
+        })
+        .eq('id', user.id);
 
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error("Update User Error:", err);
-    return false;
-  }
-    
-    // --- SINKRONISASI TOTAL (ANTI-REFRESH) ---
-    // 1. Update list users global (Biar GM liat data baru si Adventurer)
-    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+      if (error) throw error;
+      
+      setUsers(prev => prev.map(u => u.id === user.id ? user : u));
 
-    // 2. Update currentUser JIKA yang diupdate adalah diri sendiri
-    if (currentUser?.id === user.id) {
-      setCurrentUser(user);
-      localStorage.setItem('game_user', JSON.stringify(user));
+      if (currentUser?.id === user.id) {
+        setCurrentUser(user);
+        localStorage.setItem('game_user', JSON.stringify(user));
+      }
+      
+      return true;
+    } catch (err) {
+      console.error("Update User Error:", err);
+      return false;
     }
-    
-    return true;
   };
+
   // --- PERSISTENCE LOGIC ---
   useEffect(() => {
     const savedUser = localStorage.getItem('game_user');
@@ -386,9 +415,11 @@ const updateUserInDb = async (user: User) => {
         localStorage.removeItem('game_user');
       }
     }
+    
+    fetchMasterData(); // 👈 Initial Fetch Data Kamus dari DB
     fetchUsers();
     fetchQuests();
-  }, []);
+  }, [fetchMasterData]); 
 
   useEffect(() => {
     if (currentUser) {
@@ -549,10 +580,8 @@ const updateUserInDb = async (user: User) => {
   };
 
   // --- AUTH METHODS ---
-  // --- AUTH METHODS ---
   const register = async (email: string, username: string, password: string, role: Role): Promise<boolean> => {
     try {
-      // 1. Cek dulu apakah email ini sudah terdaftar
       const { data: existingUser } = await supabase
         .from('users')
         .select('*')
@@ -560,7 +589,6 @@ const updateUserInDb = async (user: User) => {
         .maybeSingle();
 
       if (existingUser) {
-        // --- MULTI-ROLE HANDLING ---
         const isGM = existingUser.is_guild_master || false;
         const isAdv = existingUser.is_adventurer || false;
 
@@ -573,7 +601,6 @@ const updateUserInDb = async (user: User) => {
           return false;
         }
 
-        // Logic Tambahan: Jika user lama nambah role Guild Master, dia juga harus dapet Guild ID baru
         const newGuildId = (role === "guild_master" && !existingUser.guild_id) 
           ? crypto.randomUUID() 
           : existingUser.guild_id;
@@ -582,7 +609,7 @@ const updateUserInDb = async (user: User) => {
           .from('users')
           .update({ 
             role: role, 
-            guild_id: newGuildId, // Update guild_id jika dia baru jadi GM
+            guild_id: newGuildId,
             is_guild_master: role === "guild_master" ? true : isGM,
             is_adventurer: role === "adventurer" ? true : isAdv
           })
@@ -595,7 +622,6 @@ const updateUserInDb = async (user: User) => {
         return true;
       }
 
-      // 2. Cek username agar tidak ada duplikasi
       const { data: userWithUsername } = await supabase
         .from('users')
         .select('id')
@@ -607,16 +633,13 @@ const updateUserInDb = async (user: User) => {
         return false;
       }
 
-      // --- DAFTAR USER BARU TULEN ---
       const id = crypto.randomUUID();
-      
-      // LOGIKA BARU: Guildmaster dapet UUID, Adventurer dapet string kosong (null-like)
       const assignedGuildId = role === "guild_master" ? crypto.randomUUID() : "";
 
       const newUser: User = {
         id, email, username, role, avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
         xp: 0, level: 1, buffs: [], debuffs: [], activeBuffs: [], activeDebuffs: [], achievements: [],
-        guildId: assignedGuildId, // 👈 Pakai ID yang sudah ditentukan
+        guildId: assignedGuildId, 
         questsCompleted: 0, joinedAt: Date.now(), lastQuestCompletedAt: null, 
         consecutiveLateCount: 0, debuffImmunity: false, stagnantSoulCounter: 0, rustyEquipment: false, brokenShieldQuests: [],
         isGuildMaster: role === "guild_master",
@@ -628,7 +651,7 @@ const updateUserInDb = async (user: User) => {
         id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role, password_hash: password, 
         avatar: newUser.avatar, xp: newUser.xp, level: newUser.level, buffs: newUser.buffs, debuffs: newUser.debuffs,
         active_buffs: newUser.activeBuffs, active_debuffs: newUser.activeDebuffs, 
-        guild_id: assignedGuildId, // 👈 Masukkan ke Database
+        guild_id: assignedGuildId, 
         quests_completed: newUser.questsCompleted, joined_at: newUser.joinedAt, last_quest_completed_at: newUser.lastQuestCompletedAt,
         consecutive_late_count: newUser.consecutiveLateCount, debuff_immunity: newUser.debuffImmunity,
         stagnant_soul_counter: newUser.stagnantSoulCounter, rusty_equipment: newUser.rustyEquipment, broken_shield_quests: newUser.brokenShieldQuests,
@@ -650,7 +673,7 @@ const updateUserInDb = async (user: User) => {
     try {
       const { data, error } = await supabase.from('users').select('*').or(`username.eq."${identifier}",email.eq."${identifier}"`).eq('password_hash', password).maybeSingle();
       if (error) throw error;
-      if (!data) { toast.error("Email/Username atau Password salah!"); return false; }
+      if (!data) { toast.error("Email/Username or Password Incorrect, Please Make Sure You are Sober!"); return false; }
 
       const loggedInUser: User = {
         id: data.id, email: data.email, username: data.username, role: data.role as Role, avatar: data.avatar,
@@ -659,9 +682,9 @@ const updateUserInDb = async (user: User) => {
         questsCompleted: data.quests_completed || 0, joinedAt: data.joined_at || Date.now(), lastQuestCompletedAt: data.last_quest_completed_at,
         consecutiveLateCount: data.consecutive_late_count || 0, debuffImmunity: data.debuff_immunity || false,
         stagnantSoulCounter: data.stagnant_soul_counter || 0, rustyEquipment: data.rusty_equipment || false, brokenShieldQuests: data.broken_shield_quests || [],
-        isGuildMaster: data.is_guild_master || false, // 👈 Sesuai DB
-        isAdventurer: data.is_adventurer || false,     // 👈 Sesuai DB
-        availableRoles: [ // 👈 Mapping boolean ke array string
+        isGuildMaster: data.is_guild_master || false, 
+        isAdventurer: data.is_adventurer || false,     
+        availableRoles: [ 
           ...(data.is_guild_master ? ['guild_master'] : []),
           ...(data.is_adventurer ? ['adventurer'] : []),
         ] as Role[]
@@ -684,7 +707,6 @@ const updateUserInDb = async (user: User) => {
   const switchRole = async (newRole: Role): Promise<void> => {
     if (!currentUser) return;
 
-    // Cek apakah user punya hak akses ke role tersebut
     const hasAccess = newRole === "guild_master" ? currentUser.isGuildMaster : currentUser.isAdventurer;
     if (!hasAccess) {
       toast.error("Lo belum punya role ini, Adventurer!");
@@ -709,32 +731,31 @@ const updateUserInDb = async (user: User) => {
     toast.success(`Berhasil menjadi ${newRole === 'guild_master' ? 'Guild Master' : 'Adventurer'}!`, { icon });
   };
 
- // --- QUEST METHODS (ASYNC SYNC) ---
-const createQuest = async (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
-  if (!currentUser) return;
+  // --- QUEST METHODS ---
+  const createQuest = async (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
+    if (!currentUser) return;
 
-  const questData = {
-    title, 
-    description, 
-    difficulty, 
-    xp_reward: XP_MAP[difficulty], 
-    // Balikin ke angka (number) karena database lo tipenya BigInt
-    deadline: deadlineTimestamp, 
-    created_by: currentUser.id, 
-    guild_id: currentUser.guildId || null, 
-    status: "open"
+    const questData = {
+      title, 
+      description, 
+      difficulty, 
+      xp_reward: XP_MAP[difficulty], 
+      deadline: deadlineTimestamp, 
+      created_by: currentUser.id, 
+      guild_id: currentUser.guildId || null, 
+      status: "open"
+    };
+
+    const { error } = await supabase.from('quests').insert([questData]);
+    
+    if (error) {
+      toast.error("Gagal membuat quest: " + error.message);
+      console.error(error);
+    } else { 
+      fetchQuests(); 
+      toast.success("Quest has been manifested into the world!"); 
+    }
   };
-
-  const { error } = await supabase.from('quests').insert([questData]);
-  
-  if (error) {
-    toast.error("Gagal membuat quest: " + error.message);
-    console.error(error);
-  } else { 
-    fetchQuests(); 
-    toast.success("Quest has been manifested into the world!"); 
-  }
-};
 
   const acceptQuest = async (questId: string): Promise<void> => {
     if (!currentUser) return;
@@ -802,161 +823,110 @@ const createQuest = async (title: string, description: string, difficulty: Quest
     fetchQuests();
   };
 
-const approveQuest = async (questId: string): Promise<void> => {
-  // 1. Validasi awal
-  if (!currentUser || currentUser.role !== "guild_master") {
-    toast.error("Hanya Guild Master yang bisa memberikan restu!");
-    return;
-  }
-
-  const quest = quests.find(q => q.id === questId);
-  if (!quest || !quest.assignedTo) return;
-
-  const adventurer = users.find(u => u.id === quest.assignedTo);
-  if (!adventurer) return;
-
-  const now = Date.now();
-
-  try {
-    // 2. Update status Quest di Supabase
-    const { error: questError } = await supabase
-      .from('quests')
-      .update({ 
-        status: "completed", 
-        completed_at: new Date(now).toISOString() 
-      })
-      .eq('id', questId);
-
-    if (questError) throw questError;
-
-    // 3. Kalkulasi XP & Level Baru
-    const xpBreakdown = calcXpWithModifiers(adventurer, quest);
-    const newXp = adventurer.xp + xpBreakdown.totalXp;
-    const oldLevel = adventurer.level;
-    const newLevel = calcLevel(newXp);
-    const totalCompleted = (adventurer.questsCompleted || 0) + 1;
-    
-    // 4. Buat objek user dasar
-    let updated: User = { 
-      ...adventurer, 
-      xp: newXp, 
-      level: newLevel, 
-      questsCompleted: totalCompleted, 
-      lastQuestCompletedAt: now 
-    };
-
-    // 5. --- LOGIKA ACHIEVEMENT (Lengkap & Sinkron) ---
-    const currentAchievements = adventurer.achievements || [];
-    const newlyUnlocked: string[] = [];
-
-    // --- Pencapaian Berdasarkan Jumlah Quest ---
-    if (totalCompleted >= 1 && !currentAchievements.includes("First Quest")) {
-      newlyUnlocked.push("First Quest");
-    }
-    if (totalCompleted >= 5 && !currentAchievements.includes("Elite Contributor")) {
-      newlyUnlocked.push("Elite Contributor");
-    }
-    if (totalCompleted >= 10 && !currentAchievements.includes("Veteran")) {
-      newlyUnlocked.push("Veteran");
+  const approveQuest = async (questId: string): Promise<void> => {
+    if (!currentUser || currentUser.role !== "guild_master") {
+      toast.error("Hanya Guild Master yang bisa memberikan restu!");
+      return;
     }
 
-    // --- Pencapaian Berdasarkan Level ---
-    if (newLevel >= 5 && !currentAchievements.includes("Rising Star")) {
-      newlyUnlocked.push("Rising Star");
-    }
-    if (newLevel >= 10 && !currentAchievements.includes("Level 10")) {
-      newlyUnlocked.push("Level 10");
-    }
+    const quest = quests.find(q => q.id === questId);
+    if (!quest || !quest.assignedTo) return;
 
-    // --- Pencapaian Berdasarkan Kesulitan & Spesial ---
-    if (quest.difficulty === "legendary" && !currentAchievements.includes("Legendary Slayer")) {
-      newlyUnlocked.push("Legendary Slayer");
-    }
+    const adventurer = users.find(u => u.id === quest.assignedTo);
+    if (!adventurer) return;
 
-    // Logic: Jack of All Trades (Cek apakah semua difficulty sudah pernah diselesaikan)
-    const history = quests.filter(q => q.assignedTo === adventurer.id && (q.status === 'completed' || q.id === questId));
-    const uniqueDiffs = new Set(history.map(q => q.difficulty));
-    if (uniqueDiffs.has('easy') && uniqueDiffs.has('medium') && uniqueDiffs.has('hard') && uniqueDiffs.has('legendary')) {
-      if (!currentAchievements.includes("Jack of All Trades")) {
-        newlyUnlocked.push("Jack of All Trades");
+    const now = Date.now();
+
+    try {
+      const { error: questError } = await supabase
+        .from('quests')
+        .update({ 
+          status: "completed", 
+          completed_at: new Date(now).toISOString() 
+        })
+        .eq('id', questId);
+
+      if (questError) throw questError;
+
+      const xpBreakdown = calcXpWithModifiers(adventurer, quest);
+      const newXp = adventurer.xp + xpBreakdown.totalXp;
+      const oldLevel = adventurer.level;
+      const newLevel = calcLevel(newXp);
+      const totalCompleted = (adventurer.questsCompleted || 0) + 1;
+      
+      let updated: User = { 
+        ...adventurer, 
+        xp: newXp, 
+        level: newLevel, 
+        questsCompleted: totalCompleted, 
+        lastQuestCompletedAt: now 
+      };
+
+      const currentAchievements = adventurer.achievements || [];
+      const newlyUnlocked: string[] = [];
+
+      if (totalCompleted >= 1 && !currentAchievements.includes("First Quest")) newlyUnlocked.push("First Quest");
+      if (totalCompleted >= 5 && !currentAchievements.includes("Elite Contributor")) newlyUnlocked.push("Elite Contributor");
+      if (totalCompleted >= 10 && !currentAchievements.includes("Veteran")) newlyUnlocked.push("Veteran");
+      if (newLevel >= 5 && !currentAchievements.includes("Rising Star")) newlyUnlocked.push("Rising Star");
+      if (newLevel >= 10 && !currentAchievements.includes("Level 10")) newlyUnlocked.push("Level 10");
+
+      if (quest.difficulty === "legendary" && !currentAchievements.includes("Legendary Slayer")) newlyUnlocked.push("Legendary Slayer");
+
+      const history = quests.filter(q => q.assignedTo === adventurer.id && (q.status === 'completed' || q.id === questId));
+      const uniqueDiffs = new Set(history.map(q => q.difficulty));
+      if (uniqueDiffs.has('easy') && uniqueDiffs.has('medium') && uniqueDiffs.has('hard') && uniqueDiffs.has('legendary')) {
+        if (!currentAchievements.includes("Jack of All Trades")) newlyUnlocked.push("Jack of All Trades");
       }
-    }
 
-    // Logic: Speed Demon (Selesai dalam < 1 jam sejak di-accept)
-    if (quest.acceptedAt) {
-      const acceptedTime = new Date(quest.acceptedAt).getTime();
-      const durationHours = (now - acceptedTime) / (1000 * 60 * 60);
-      if (durationHours <= 1 && !currentAchievements.includes("Speed Demon")) {
-        newlyUnlocked.push("Speed Demon");
+      if (quest.acceptedAt) {
+        const acceptedTime = new Date(quest.acceptedAt).getTime();
+        const durationHours = (now - acceptedTime) / (1000 * 60 * 60);
+        if (durationHours <= 1 && !currentAchievements.includes("Speed Demon")) newlyUnlocked.push("Speed Demon");
       }
+
+      const hour = new Date().getHours();
+      if (hour >= 0 && hour < 5 && !currentAchievements.includes("Night Owl")) newlyUnlocked.push("Night Owl");
+
+      const activeDebuffs = adventurer.debuffs || [];
+      if (activeDebuffs.length === 0 && totalCompleted >= 3 && !currentAchievements.includes("Hat Trick")) newlyUnlocked.push("Hat Trick");
+
+      updated.achievements = [...currentAchievements, ...newlyUnlocked];
+
+      if (newlyUnlocked.length > 0) {
+         newlyUnlocked.forEach(title => toast.success(`🏆 ACHIEVEMENT UNLOCKED: ${title}!`));
+      }
+
+      updated = applyBuffsDebuffs(updated, quest, now, quests);
+      if (updated.brokenShieldQuests) {
+        updated.brokenShieldQuests = updated.brokenShieldQuests.filter(id => id !== quest.id);
+      }
+      updated = cleanExpiredEffects(updated);
+
+      const isSaveSuccess = await updateUserInDb(updated);
+      if (!isSaveSuccess) return; 
+
+      if (newLevel > oldLevel) {
+        toast.success(`🎊 LEVEL UP! ${adventurer.username} naik ke Level ${newLevel}!`);
+      }
+
+      toast.success(`⚔️ Quest "${quest.title}" Approved!`);
+      
+      await Promise.all([fetchQuests(), fetchUsers()]);
+      
+    } catch (error: any) {
+      console.error("⛔ ApproveQuest Error:", error);
+      toast.error("Gagal menyetujui quest");
     }
+  };
 
-    // Logic: Night Owl (Submit antara jam 00:00 - 05:00)
-    const hour = new Date().getHours();
-    if (hour >= 0 && hour < 5 && !currentAchievements.includes("Night Owl")) {
-      newlyUnlocked.push("Night Owl");
-    }
-
-    // Logic: Hat Trick (3 Quest beruntun tanpa debuff)
-    const activeDebuffs = adventurer.debuffs || [];
-    if (activeDebuffs.length === 0 && totalCompleted >= 3 && !currentAchievements.includes("Hat Trick")) {
-      // Idealnya ini mengecek history 3 quest terakhir, tapi logic simpelnya:
-      // Jika saat quest ke-3 selesai tidak ada debuff aktif, dia dapat.
-      newlyUnlocked.push("Hat Trick");
-    }
-
-    // Masukkan ke array achievements user
-    updated.achievements = [...currentAchievements, ...newlyUnlocked];
-
-    // Update state global Achievements
-    if (newlyUnlocked.length > 0) {
-       newlyUnlocked.forEach(title => toast.success(`🏆 ACHIEVEMENT UNLOCKED: ${title}!`));
-       
-       setAchievements(prev => prev.map(ach => {
-         if (newlyUnlocked.includes(ach.title)) {
-           return { 
-             ...ach, 
-             unlockedBy: Array.from(new Set([...(ach.unlockedBy || []), adventurer.id])) 
-           };
-         }
-         return ach;
-       }));
-    }
-
-    // 6. Buff & Debuff Logic (Tetap terjaga)
-    updated = applyBuffsDebuffs(updated, quest, now, quests);
-    if (updated.brokenShieldQuests) {
-      updated.brokenShieldQuests = updated.brokenShieldQuests.filter(id => id !== quest.id);
-    }
-    updated = cleanExpiredEffects(updated);
-
-    // 7. Simpan ke Database
-    const isSaveSuccess = await updateUserInDb(updated);
-    if (!isSaveSuccess) return; 
-
-    // 8. Trigger Notifikasi Level Up
-    if (newLevel > oldLevel) {
-      toast.success(`🎊 LEVEL UP! ${adventurer.username} naik ke Level ${newLevel}!`);
-    }
-
-    toast.success(`⚔️ Quest "${quest.title}" Approved!`);
-    
-    // 9. REFRESH LIST QUEST & USERS
-    await Promise.all([fetchQuests(), fetchUsers()]);
-    
-  } catch (error: any) {
-    console.error("⛔ ApproveQuest Error:", error);
-    toast.error("Gagal menyetujui quest");
-  }
-};
-// 1. Fungsi Ambil Chat Khusus Guild Sendiri
   const fetchGuildMessages = useCallback(async () => {
-    if (!currentUser?.guildId) return; // Menggunakan guildId (camelCase) sesuai data interface User lo
+    if (!currentUser?.guildId) return; 
 
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
-      .eq('guild_id', currentUser.guildId) // Filter kolom guild_id di DB agar hanya membaca chat milik guild sendiri
+      .eq('guild_id', currentUser.guildId) 
       .order('created_at', { ascending: true })
       .limit(50);
 
@@ -965,13 +935,11 @@ const approveQuest = async (questId: string): Promise<void> => {
     }
   }, [currentUser?.guildId]);
 
-  // 2. Efek untuk Panggil Fetch dan Pasang Listener Realtime Khusus Guild
   useEffect(() => {
     if (!currentUser?.guildId) return;
 
     fetchGuildMessages();
 
-    // Pasang telinga hanya untuk INSERT di tabel chat_messages dengan guild_id yang sama
     const channel = supabase
       .channel(`guild-room-${currentUser.guildId}`)
       .on(
@@ -985,7 +953,6 @@ const approveQuest = async (questId: string): Promise<void> => {
         (payload) => {
           const newMsg = payload.new as ChatMessage;
           setChatMessages((prev) => {
-            // Mencegah duplikasi data jika kebetulan masuk double
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
@@ -998,7 +965,6 @@ const approveQuest = async (questId: string): Promise<void> => {
     };
   }, [currentUser?.guildId, fetchGuildMessages]);
 
-  // 3. Fungsi Kirim Pesan Sesuai Struktur Tabel Lo
   const sendMessage = async (content: string) => {
     if (!currentUser?.guildId) {
       toast.error("Kamu harus masuk Guild dulu untuk ngobrol di Tavern!");
@@ -1054,7 +1020,6 @@ const approveQuest = async (questId: string): Promise<void> => {
   const acceptInvite = async (inviteID: string, guildId: string) => {
     if (!currentUser) return;
     try {
-      // 1. Update USER di Database
       const { error: userUpdateError } = await supabase
         .from('users')
         .update({ guild_id: guildId })
@@ -1062,7 +1027,6 @@ const approveQuest = async (questId: string): Promise<void> => {
 
       if (userUpdateError) throw userUpdateError;
 
-      // 2. Update Status Undangan di Database
       const { error: inviteUpdateError } = await supabase
         .from('invitations')
         .update({ status: 'accepted' })
@@ -1070,19 +1034,13 @@ const approveQuest = async (questId: string): Promise<void> => {
 
       if (inviteUpdateError) throw inviteUpdateError;
 
-      // 3. UPDATE STATE LOKAL & SYNC (PENTING!)
       const updatedUser = { ...currentUser, guildId: guildId };
       setCurrentUser(updatedUser);
-      
-      // Update juga di list users agar Hall of Fame langsung berubah
       setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-      
-      // Simpan ke localStorage biar pas refresh gak balik null
       localStorage.setItem('game_user', JSON.stringify(updatedUser));
 
       toast.success("Welcome to the Guild, Keeps your sword sharp and your wits sharper!");
       
-      // Refresh data agar semua komponen dapet data terbaru
       await fetchUsers(); 
       fetchQuests(); 
     } catch (error: any) {
@@ -1093,45 +1051,41 @@ const approveQuest = async (questId: string): Promise<void> => {
 
   const changeAvatar = (avatar: string) => { if (currentUser) updateUserInDb({ ...currentUser, avatar }); };
 
-  // Kick Member Logic (Hanya untuk Guild Master)
-const kickMember = async (memberId: string) => {
-  // 1. Proteksi: Hanya Guild Master yang bisa nge-kick
-  if (currentUser?.role !== 'guild_master') {
-    toast.error("Only the Guild Master has the authority to banish members!");
-    return;
-  }
+  const kickMember = async (memberId: string) => {
+    if (currentUser?.role !== 'guild_master') {
+      toast.error("Only the Guild Master has the authority to banish members!");
+      return;
+    }
 
-  try {
-    // 2. Update di Database
-    const { error } = await supabase
-      .from('users')
-      .update({ guild_id: "" }) 
-      .eq('id', memberId);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ guild_id: "" }) 
+        .eq('id', memberId);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // 3. Update State Lokal
-    setUsers(prev => prev.map(u => 
-      u.id === memberId ? { ...u, guildId: "" } : u
-    ));
-    
-    toast.success("Adventurer has been Banished from the Guild!");
-    
-    // 4. Refresh data agar Hall of Fame & list member bersih
-    await fetchUsers(); 
-  } catch (err) {
-    console.error("Kick Error:", err);
-    toast.error("Failed to Banish Adventurer.");
-  }
-};
+      setUsers(prev => prev.map(u => 
+        u.id === memberId ? { ...u, guildId: "" } : u
+      ));
+      
+      toast.success("Adventurer has been Banished from the Guild!");
+      await fetchUsers(); 
+    } catch (err) {
+      console.error("Kick Error:", err);
+      toast.error("Failed to Banish Adventurer.");
+    }
+  };
 
-return (
+  return (
     <GameContext.Provider value={{
       currentUser, 
       users, 
       quests, 
       chatMessages, 
       achievements,
+      masterBuffs,   // 👈 Ter-export ke seluruh UI
+      masterDebuffs, // 👈 Ter-export ke seluruh UI
       login, 
       register, 
       logout, 
@@ -1141,11 +1095,11 @@ return (
       approveQuest, 
       rejectQuest, 
       sendMessage,
-      sendInvite,      // 👈 Pastikan ini ada
+      sendInvite,      
       acceptInvite,
-      kickMember,    // 👈 Pastikan ini ada
+      kickMember,    
       changeAvatar,
-      switchRole,      // 👈 Pastikan ini ada
+      switchRole,      
       availableAvatars: AVATARS
     }}>
       {children}

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; // 👈 Tambah useNavigate & useLocation
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { GameProvider, useGame } from "@/context/GameContext";
 import AppSidebar from "@/components/AppSidebar";
@@ -15,14 +15,37 @@ import Codex from "@/pages/Codex";
 import HallOfFame from "@/pages/HallOfFame";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
+import { useEffect } from "react"; // 👈 Tambah useEffect
 
 const queryClient = new QueryClient();
 
 const AuthenticatedApp = () => {
   const { currentUser } = useGame();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  if (!currentUser) return <AuthScreen />;
+  useEffect(() => {
+    // 1. Jika session hilang/logout dan URL bukan di /login, paksa pindah URL ke /login
+    if (!currentUser && location.pathname !== "/login") {
+      navigate("/login", { replace: true });
+    }
+    // 2. Jika user sudah login tapi iseng ngetik /login di URL, balikin ke /quests
+    if (currentUser && location.pathname === "/login") {
+      navigate("/quests", { replace: true });
+    }
+  }, [currentUser, navigate, location.pathname]);
 
+  // JIKA BELUM LOGIN: Tampilkan AuthScreen di rute /login
+  if (!currentUser) {
+    return (
+      <Routes>
+        <Route path="/login" element={<AuthScreen />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // JIKA SUDAH LOGIN: Tampilkan layout dashboard lo yang asli (tanpa diubah sedikitpun)
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
