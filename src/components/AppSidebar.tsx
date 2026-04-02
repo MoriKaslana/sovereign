@@ -27,12 +27,12 @@ const AppSidebar = () => {
   const canSwitch = currentUser?.isGuildMaster && currentUser?.isAdventurer;
 
   const navItems = [
-    { title: "Quest Board", url: "/quests", icon: "📜" },
-    ...(isGM ? [{ title: "Review Board", url: "/review", icon: "⚖️" }] : []),
-    { title: "The Tavern", url: "/tavern", icon: "🍻" },
-    { title: "Guild Codex", url: "/codex", icon: "📖" },
-    { title: "Hall of Fame", url: "/fame", icon: "🏆" },
-    { title: "Profile", url: "/profile", icon: "👤" },
+    { title: "Papan Tugas", url: "/quests", icon: "📜" },
+    ...(isGM ? [{ title: "Papan Ulasan", url: "/review", icon: "⚖️" }] : []),
+    { title: "Warkop Ngumpul", url: "/tavern", icon: "🍻" },
+    { title: "Naskah Guild", url: "/codex", icon: "📖" },
+    { title: "Aula", url: "/fame", icon: "🏆" },
+    { title: "Profil", url: "/profile", icon: "👤" },
   ];
 
   const handleSwitchRole = () => {
@@ -106,7 +106,7 @@ const AppSidebar = () => {
             <RefreshCcw className={`h-4 w-4 ${collapsed ? "" : "mr-2"}`} />
             {!collapsed && (
               <span className="text-xs font-semibold">
-                Switch to {isGM ? "Adventurer" : "Guild Master"}
+                Ganti ke {isGM ? "Adventurer" : "Guild Master"}
               </span>
             )}
           </Button>
@@ -120,7 +120,7 @@ const AppSidebar = () => {
           className="w-full text-muted-foreground hover:text-crimson hover:bg-crimson/5"
         >
           <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2 font-body">Leave Hall</span>}
+          {!collapsed && <span className="ml-2 font-body">Keluar</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>

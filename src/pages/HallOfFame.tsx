@@ -52,7 +52,7 @@ const HallOfFame = () => {
       {/* Leaderboard Section */}
       <div className="mb-8">
         <h2 className="font-heading text-lg text-foreground mb-3 flex justify-between items-center">
-          <span>{currentUser?.guildId ? "Guild Leaderboard" : "Adventurer Stats"}</span>
+          <span>{currentUser?.guildId ? "Ranking Guild" : "Adventurer Stats"}</span>
           {currentUser?.role === "guild_master" && (
             <span className="text-[10px] text-gold border border-gold/30 px-2 py-1 rounded tracking-widest font-bold bg-gold/5">
               GM MODE
@@ -98,7 +98,7 @@ const HallOfFame = () => {
                 
                 <div className="flex items-center gap-2 mt-0.5">
                   <div className="text-xs text-muted-foreground font-body">
-                    Level {u.level} • {u.questsCompleted} quests
+                    Level {u.level} • {u.questsCompleted} Tugas
                   </div>
                   
                   {u.achievements && u.achievements.length > 0 && (
@@ -120,7 +120,7 @@ const HallOfFame = () => {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="font-heading text-gold text-sm">{u.xp} XP</div>
-                  <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Titles</div>
+                  <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Gelar</div>
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -166,7 +166,7 @@ const HallOfFame = () => {
       <div className="mt-12">
         <h2 className="font-heading text-lg text-foreground mb-4 flex items-center gap-2">
           <Star className="h-5 w-5 text-gold" />
-          Your Achievements
+          Gelar Anda
         </h2>
         
         <div className="grid gap-3 md:grid-cols-2">

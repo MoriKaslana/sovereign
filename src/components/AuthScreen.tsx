@@ -53,13 +53,13 @@ const AuthScreen = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isLogin ? (
             <div>
-              <Label className="text-foreground">Username or Email</Label>
+              <Label className="text-foreground">Username atau Email</Label>
               <Input
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required
                 className="bg-secondary border-border"
-                placeholder="Enter your username or email"
+                placeholder="Masukkan username atau email"
               />
             </div>
           ) : (
@@ -136,7 +136,7 @@ const AuthScreen = () => {
           {error && <p className="text-crimson text-sm">{error}</p>}
 
           <Button type="submit" className="w-full font-heading">
-            {isLogin ? "Enter the Hall" : "Forge Your Destiny"}
+            {isLogin ? "Masuk Guild" : "Forge Your Destiny"}
           </Button>
         </form>
 
@@ -144,7 +144,7 @@ const AuthScreen = () => {
           onClick={() => { setIsLogin(!isLogin); setError(""); }}
           className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-gold transition-colors"
         >
-          {isLogin ? "New here? Join the Guild" : "Already a member? Enter"}
+          {isLogin ? "Orang Baru ? Silahkan Daftar Dulu" : "Already a member? Enter"}
         </button>
       </motion.div>
     </div>

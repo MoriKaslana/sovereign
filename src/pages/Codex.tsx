@@ -1,41 +1,42 @@
 import { motion } from "framer-motion";
 
 const BUFFS = [
-  { name: "Adventurer's Haste", icon: "⚡", desc: "Earned by submitting a quest at least 24 hours before the deadline. Your swiftness is legendary!", howTo: "Submit any quest with 24+ hours remaining before the deadline.", effect: "+50% XP Bonus", duration: "Lasts 24 hours" },
-  { name: "Scholar's Focus", icon: "📚", desc: "Earned by completing a Hard difficulty quest. Your dedication to challenging tasks is admirable.", howTo: "Submit a quest with difficulty set to Hard.", effect: "+20% XP Bonus", duration: "Lasts 24 hours" },
-  { name: "Weekend Warrior", icon: "🗡️", desc: "Earned by submitting a quest on a weekend. Even on rest days, you press forward!", howTo: "Submit any quest on a Saturday or Sunday.", effect: "+10% XP Bonus", duration: "Lasts 24 hours" },
-  { name: "Night Owl", icon: "🦉", desc: "Earned by submitting a quest between midnight and 5 AM. The guild never sleeps.", howTo: "Submit a quest between 12:00 AM and 4:59 AM.", effect: "Recognition buff", duration: "Lasts 24 hours" },
-  { name: "Clutch Player", icon: "🎯", desc: "Earned by submitting just before the deadline — within the last 10% of time. Living on the edge!", howTo: "Submit a quest when less than 10% of the total time remains.", effect: "Recognition buff", duration: "Lasts 24 hours" },
-  { name: "First Strike", icon: "⚔️", desc: "Earned by submitting a quest within 1 hour of accepting it. Lightning-fast execution!", howTo: "Accept and submit a quest within 60 minutes.", effect: "Recognition buff", duration: "Lasts 24 hours" },
+  { name: "Adventurer's Haste", icon: "⚡", desc: "Didapatkan dengan mengirimkan misi setidaknya 24 jam sebelum batas waktu. Kecepatanmu sungguh legendaris!", howTo: "Kirimkan tugas apa pun dengan sisa waktu 24 jam atau lebih sebelum batas waktu.", effect: "+50% XP Bonus", duration: "Bertahan 24 Jam" },
+  { name: "Scholar's Focus", icon: "📚", desc: "Didapatkan dengan menyelesaikan tugas dengan tingkat kesulitan Hard. Dedikasimu terhadap tugas yang menantang sangat mengagumkan.", howTo: "Kirimkan tugas dengan tingkat kesulitan set ke Hard.", effect: "+20% XP Bonus", duration: "Bertahan 24 Jam" },
+  { name: "Weekend Warrior", icon: "🗡️", desc: "Didapatkan dengan mengirimkan tugas pada akhir pekan. Bahkan di hari libur, kamu terus maju!", howTo: "Kirimkan tugas apa pun pada Sabtu atau Minggu.", effect: "+10% XP Bonus", duration: "Bertahan 24 Jam" },
+  { name: "Night Owl", icon: "🦉", desc: "Didapatkan dengan mengirimkan tugas antara tengah malam dan 5 pagi. Guild tidak pernah tidur.", howTo: "Kirimkan tugas antara 12:00 AM dan 4:59 AM.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
+  { name: "Clutch Player", icon: "🎯", desc: "Didapatkan dengan mengirimkan tugas tepat sebelum tenggat waktu — dalam 10% waktu terakhir. Hidup di ujung pedang!", howTo: "Kirimkan tugas ketika tersisa kurang dari 10% waktu total.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
+  { name: "First Strike", icon: "⚔️", desc: "Didapatkan dengan mengirimkan tugas dalam 1 jam setelah menerimanya. Eksekusi yang cepat seperti kilat!", howTo: "Terima dan kirimkan tugas dalam waktu 60 menit.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
   { name: "Chain Quest (Combo)", icon: "🔗", desc: "Earned by submitting 3 quests within a 24-hour window. You're on fire!", howTo: "Submit 3 quests within a rolling 24-hour period. The buff applies on the 3rd submission.", effect: "+15% XP Bonus on the 3rd quest", duration: "Lasts 24 hours" },
   { name: "Aura of Purity", icon: "✨", desc: "The ultimate buff. Completing a Legendary quest purifies your soul, clearing all debuffs and granting immunity.", howTo: "Submit a quest with Legendary difficulty.", effect: "Clears ALL active debuffs + grants immunity to next debuff", duration: "Lasts 24 hours (immunity until consumed)" },
 ];
 
 const DEBUFFS = [
-  { name: "Cursed Procrastination", icon: "🐌", desc: "Applied when a quest is submitted after the deadline. Time waits for no one!", howTo: "Submit any quest after its deadline has passed.", effect: "-10 XP Flat Penalty", duration: "Lasts 48 hours" },
-  { name: "Slacker's Fatigue", icon: "😴", desc: "Applied when you have more than 5 active (accepted but not submitted) quests. Too many tasks weigh heavily.", howTo: "Accept more than 5 quests without completing or submitting them.", effect: "-5% XP on next quest", duration: "Lasts 24 hours" },
-  { name: "Rusty Equipment", icon: "🪓", desc: "Applied after 3 days of inactivity. A warrior must keep their blade sharp!", howTo: "Go 3 consecutive days without completing any quest.", effect: "Avatar becomes grayscale; ALL buffs disabled until 1 quest completed", duration: "Until you complete a quest" },
-  { name: "Broken Shield", icon: "🛡️💔", desc: "Applied when a Guild Master rejects your submitted quest. Your confidence is shaken.", howTo: "Have a submitted quest rejected by the Guild Master.", effect: "-25% XP reduction when that specific quest is finally approved", duration: "Lasts 48 hours or until quest re-approved" },
-  { name: "Stagnant Soul", icon: "⛓️", desc: "The ultimate debuff. Three consecutive late submissions chain your soul, blocking all buffs.", howTo: "Submit 3 quests in a row after their deadlines (consecutive late submissions).", effect: "Blocks ALL Buffs/Multipliers for the next 3 completed quests (Base XP only)", duration: "Until 3 quests are completed" },
+  { name: "Cursed Procrastination", icon: "🐌", desc: "Diterapkan jika sebuah misi diajukan setelah batas waktu yang ditentukan. Waktu tidak menunggu siapa pun!", howTo: "Kirimkan tugas apa pun setelah batas waktu telah berlalu.", effect: "-10 XP Flat Penalty", duration: "Bertahan 48 Jam" },
+  { name: "Slacker's Fatigue", icon: "😴", desc: "Diterapkan ketika kamu memiliki lebih dari 5 tugas aktif (diterima tapi belum dikirim). Terlalu banyak tugas membuatmu lelah.", howTo: "Terima lebih dari 5 tugas tanpa menyelesaikannya atau mengirimkannya.", effect: "-5% XP pada tugas berikutnya", duration: "Bertahan 24 Jam" },
+  { name: "Rusty Equipment", icon: "🪓", desc: "Diterapkan setelah 3 hari tidak aktif. Seorang pejuang harus menjaga pedangnya tetap tajam!", howTo: "Tidak menyelesaikan tugas apa pun selama 3 hari berturut-turut.", effect: "Avatar menjadi grayscale; SEMUA buff dinonaktifkan hingga 1 tugas diselesaikan", duration: "Hingga kamu menyelesaikan sebuah tugas" },
+  { name: "Broken Shield", icon: "🛡️💔", desc: "Diterapkan ketika Master Guild menolak tugas yang kamu kirim. Kepercayaanmu terguncang.", howTo: "Memiliki tugas yang dikirim ditolak oleh Master Guild.", effect: "-25% pengurangan XP ketika tugas tersebut akhirnya disetujui", duration: "Bertahan 48 Jam atau hingga tugas disetujui ulang" },
+  { name: "Stagnant Soul", icon: "⛓️", desc: "Debuff terkuat. Tiga pengiriman terlambat berturut-turut akan membatasi jiwa mu, memblokir semua buff.", howTo: "Kirimkan 3 tugas berturut-turut setelah tenggat waktu mereka (pengiriman terlambat berturut-turut).", effect: "Memblokir SEMUA Buff/Multiplier untuk 3 tugas berikutnya (XP dasar saja)", duration: "Hingga 3 tugas diselesaikan" },
 ];
 
 const ACHIEVEMENTS = [
-  { name: "First Blood", icon: "⚔️", desc: "Complete your first quest.", howTo: "Have your first quest approved by a Guild Master." },
-  { name: "Seasoned Warrior", icon: "🛡️", desc: "Complete 5 quests.", howTo: "Accumulate 5 approved quest completions." },
-  { name: "Veteran", icon: "🏅", desc: "Complete 10 quests.", howTo: "Accumulate 10 approved quest completions." },
-  { name: "Speed Demon", icon: "⚡", desc: "Submit a quest within 1 hour of accepting.", howTo: "Accept a quest and submit it within 60 minutes." },
-  { name: "Legend", icon: "👑", desc: "Complete a legendary quest.", howTo: "Have a Legendary-difficulty quest approved." },
-  { name: "Tavern Regular", icon: "🍻", desc: "Send 10 messages in the tavern.", howTo: "Post at least 10 messages in the Tavern chat." },
-  { name: "Rising Star", icon: "⭐", desc: "Reach level 5.", howTo: "Earn enough XP to reach level 5 (800 XP total)." },
-  { name: "Elite Warrior", icon: "💎", desc: "Reach level 10.", howTo: "Earn enough XP to reach level 10 (1800 XP total)." },
-  { name: "Hat Trick", icon: "🎯", desc: "Complete 3 quests in a row without a debuff.", howTo: "Complete 3 consecutive quests without earning any debuff." },
-  { name: "Jack of All Trades", icon: "🃏", desc: "Complete one quest of each difficulty.", howTo: "Complete at least one Easy, Medium, Hard, and Legendary quest." },
-  { name: "Night Owl", icon: "🦉", desc: "Submit a quest between midnight and 5 AM.", howTo: "Submit any quest between 12:00 AM and 4:59 AM." },
+  { name: "First Blood", icon: "⚔️", desc: "Selesaikan tugas pertamamu.", howTo: "Buat Tugas Pertama mu di Terima Oleh Guild Master." },
+  { name: "Elite Contributor", icon: "🛡️", desc: "Selesaikan 5 tugas.", howTo: "Kumpulkan 5 penyelesaian misi yang disetujui." },
+  { name: "Veteran", icon: "🏅", desc: "Selesaikan 10 tugas.", howTo: "Kumpulkan 10 penyelesaian misi yang disetujui." },
+  { name: "Speed Demon", icon: "⚡", desc: "Kirimkan tugas dalam 1 jam setelah menerimanya.", howTo: "Terima tugas dan kirimkan dalam waktu 60 menit." },
+  { name: "Legendary Slayer", icon: "👑", desc: "Selesaikan tugas dengan kesulitan legendary.", howTo: "Dapatkan persetujuan untuk quest dengan tingkat kesulitan Legendary." },
+  { name: "Tavern Regular", icon: "🍻", desc: "Kirimkan 10 pesan di kedai ngumpul.", howTo: "Kirim setidaknya 10 pesan di obrolan Kedai Ngumpul." },
+  { name: "Rising Star", icon: "⭐", desc: "Capai level 5.", howTo: "Kumpulkan XP yang cukup untuk mencapai level 5 (total 800 XP)." },
+  { name: "Elite Warrior", icon: "💎", desc: "Capai level 10.", howTo: "Kumpulkan XP yang cukup untuk mencapai level 10 (total 1800 XP)." },
+  { name: "Hat Trick", icon: "🎯", desc: "Selesaikan 3 tugas berturut-turut tanpa terkena debuff.", howTo: "Selesaikan 3 misi berturut-turut tanpa mendapatkan efek negatif." },
+  { name: "Jack of All Trades", icon: "🃏", desc: "Selesaikan satu misi untuk setiap tingkat kesulitan.", howTo: "Selesaikan setidaknya satu tugas untuk setiap tingkat kesulitan: Easy, Medium, Hard, and Legendary." },
+  { name: "Night Owl", icon: "🦉", desc: "Kirimkan misi antara tengah malam dan pukul 5 pagi.", howTo: "Kirimkan misi apa pun antara pukul 12:00 AM dan 4:59 AM." },
+  { name: "Streak Master", icon: "🔥", desc: "Selesaikan 3 Tugas Berturut-turut.", howTo: "Selesaikan 3 misi secara beruntun tanpa kegagalan atau pembatalan." },
 ];
 
 const ROLES = [
-  { name: "Guild Master", icon: "👑", desc: "The leader who creates quests, reviews submissions, rejects or approves quests, and manages the guild. Can invite adventurers." },
-  { name: "Adventurer", icon: "⚔️", desc: "The brave soul who accepts quests, battles deadlines, and earns XP. Can accept missions and submit them for review." },
+  { name: "Guild Master", icon: "👑", desc: "Pemimpin yang membuat tugas, meninjau pengajuan, menolak atau menyetujui tugas, dan mengelola guild. Dapat mengundang adventurer." },
+  { name: "Adventurer", icon: "⚔️", desc: "Sosok pemberani yang menerima tugas, berpacu dengan tenggat waktu, dan mendapatkan XP. Dapat menerima tugas dan mengirimkannya untuk ditinjau." },
 ];
 
 const Codex = () => {

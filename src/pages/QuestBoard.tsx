@@ -84,12 +84,13 @@ const QuestBoard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <h2 className="font-heading text-3xl text-[#5d4037] uppercase tracking-tighter">Duel Challenge!</h2>
+                  <h2 className="font-heading text-3xl text-[#5d4037] uppercase tracking-tighter">Tantangan Duel!</h2>
                   <div className="h-0.5 w-24 bg-[#8b5a2b]/30 mx-auto" />
                 </div>
 
                 <p className="font-body text-[#795548] text-lg leading-relaxed italic">
-                  "Hear ye, adventurer! <span className="font-bold text-[#5d4037]">@{challenger?.username}</span> has challenged thee to a trial of speed on the quest: 
+                  "Dengar Lah, adventurer! <span className="font-bold text-[#5d4037]">@{challenger?.username}</span> telah menantang Anda untuk bertarung demi membuktikan kehebatan di medan pertempuran! Apakah Anda siap menerima tantangan ini dan menunjukkan keberanian sejati Anda? <br/><br/>
+                  Jika Anda menerima, bersiaplah untuk menghadapi ujian yang akan menguji keterampilan, strategi, dan keberanian Anda: 
                   <br/>
                   <span className="not-italic font-heading text-sm bg-[#8b5a2b]/10 px-2 py-1 rounded mt-2 inline-block">
                     {incomingDuel.title}
@@ -101,14 +102,14 @@ const QuestBoard = () => {
                     onClick={() => respondToDuel && respondToDuel(incomingDuel.id, 'accept')}
                     className="flex-1 bg-[#8b5a2b] hover:bg-[#5d4037] text-[#fdf2d9] py-6 text-lg shadow-lg"
                   >
-                    ACCEPT FIGHT
+                    Terima 
                   </Button>
                   <Button 
                     onClick={() => respondToDuel && respondToDuel(incomingDuel.id, 'reject')}
                     variant="outline"
                     className="flex-1 border-[#8b5a2b] text-[#8b5a2b] hover:bg-[#8b5a2b]/10 py-6 text-lg"
                   >
-                    DECLINE
+                    Tolak  
                   </Button>
                 </div>
               </div>
@@ -125,7 +126,7 @@ const QuestBoard = () => {
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-heading text-2xl text-gold flex items-center gap-2">
           <ScrollIcon className="h-6 w-6" />
-          Quest Board
+          Papan Tugas
         </h1>
         <div className="flex gap-2">
           {isGM && <InviteModal />}
@@ -133,23 +134,23 @@ const QuestBoard = () => {
             <Dialog open={open} onOpenChange={setOpen}>
               {/* ... trigger & content dialog post quest lo tetep sama ... */}
               <DialogTrigger asChild>
-                <Button className="font-heading">+ Post Quest</Button>
+                <Button className="font-heading">+ Tugas Baru</Button>
               </DialogTrigger>
               <DialogContent className="bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="font-heading text-gold">Post New Quest</DialogTitle>
+                  <DialogTitle className="font-heading text-gold">Pasang Tugas Barus</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div>
-                    <Label>Quest Title</Label>
+                    <Label>Judul Tugas</Label>
                     <Input value={title} onChange={e => setTitle(e.target.value)} required className="bg-secondary" />
                   </div>
                   <div>
-                    <Label>Description</Label>
+                    <Label>Deskripsi</Label>
                     <Textarea value={desc} onChange={e => setDesc(e.target.value)} required className="bg-secondary" />
                   </div>
                   <div>
-                    <Label>Difficulty</Label>
+                    <Label>Kesusahan</Label>
                     <div className="flex gap-2 mt-1">
                       {(["easy", "medium", "hard", "legendary"] as QuestDifficulty[]).map(d => (
                         <button
@@ -166,7 +167,7 @@ const QuestBoard = () => {
                     </div>
                   </div>
                   <div>
-                    <Label>Deadline</Label>
+                    <Label>Batas Tugas</Label>
                     <div className="flex gap-2 mt-1">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -223,7 +224,7 @@ const QuestBoard = () => {
                       </Select>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full font-heading">Dispatch Quest</Button>
+                  <Button type="submit" className="w-full font-heading">Pasang Tugas</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -232,21 +233,21 @@ const QuestBoard = () => {
       </div>
 
       {/* --- SECTIONS --- */}
-      <Section title="Available Quests" count={openQuests.length}>
+      <Section title="Tugas Tersedia" count={openQuests.length}>
         {openQuests.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
 
       {/* Duel Challenges HAPUS (Sudah diganti pop-up & masuk ke Active) */}
 
-      <Section title="Active Quests" count={myActive.length}>
+      <Section title="Tugas Aktif" count={myActive.length}>
         {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
 
-      <Section title="Submitted (Awaiting Review)" count={mySubmitted.length} glow="gold">
+      <Section title="Diajukan (Menunggu Ulasan)" count={mySubmitted.length} glow="gold">
         {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
 
-      <Section title="Completed" count={myCompleted.length} glow="green">
+      <Section title="Selesai" count={myCompleted.length} glow="green">
         {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
     </div>
@@ -263,7 +264,7 @@ const Section = ({ title, count, children, glow }: { title: string; count: numbe
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <AnimatePresence>
         {count === 0 && (
-          <p className="text-muted-foreground font-body col-span-full text-center py-8">No quests here yet.</p>
+          <p className="text-muted-foreground font-body col-span-full text-center py-8">Sedang menunggu tugas baru...</p>
         )}
         {children}
       </AnimatePresence>

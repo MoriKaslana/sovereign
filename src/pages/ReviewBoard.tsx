@@ -46,10 +46,10 @@ const ReviewBoard = () => {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button onClick={() => rejectQuest(q.id)} variant="outline" className="font-heading border-crimson/30 text-crimson hover:bg-crimson/10" size="sm">
-                      <XCircle className="h-4 w-4 mr-1" /> Reject
+                      <XCircle className="h-4 w-4 mr-1" /> Tolak
                     </Button>
                     <Button onClick={() => approveQuest(q.id)} className="font-heading" size="sm">
-                      <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                      <CheckCircle className="h-4 w-4 mr-1" /> Terima
                     </Button>
                   </div>
                 </div>

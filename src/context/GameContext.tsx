@@ -661,7 +661,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUsers(prev => [...prev, newUser]);
       setCurrentUser(newUser);
-      toast.success(role === "guild_master" ? `Guild created! Welcome, Master ${username}!` : `Welcome to the Guild, ${username}!`);
+      toast.success(role === "guild_master" ? `Guild Telah Terbentuk! Selamat Datang, Tuan ${username}!` : `Selamat Datang, di Guild ${username}!`);
       return true;
     } catch (error: any) {
       toast.error("Gagal mendaftar: " + error.message);
@@ -765,7 +765,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error(error);
     } else { 
       fetchQuests(); 
-      toast.success("Quest has been manifested into the world!"); 
+      toast.success("Tugas Telah dipasang, Petualang! Siapa yang berani mengambilnya?!"); 
     }
   };
 
@@ -788,7 +788,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedUser = checkInactivityDebuff(currentUser, quests);
     await updateUserInDb(updatedUser);
     fetchQuests();
-    toast.success("Quest has been accepted! Time to embark on your adventure!");
+    toast.success("Tugas telah diterima! Saatnya memulai petualanganmu!");
   };
 
  const submitQuest = async (questId: string): Promise<void> => {
@@ -817,7 +817,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateUserInDb(updatedUser);
     await fetchQuests(); // <--- Biar langsung berubah di list
     
-    toast.success("Quest submitted! Awaiting Guild Master's approval.");
+    toast.success("Tugas telah dikirim! Menunggu persetujuan Guild Master.");
   };
 
   // --- FITUR DUEL: KIRIM TANTANGAN ---
@@ -1042,8 +1042,8 @@ const sendDuelChallenge = async (myQuestId: string, targetUserId: string) => {
 
       if (newLevel > oldLevel) toast.success(`🎊 LEVEL UP! ${adventurer.username} naik ke Level ${newLevel}!`);
       
-      if (isDuelWin) toast.success(`⚔️ DUEL WON! Quest Approved & Merampok ${DUEL_PENALTY[quest.difficulty]} XP!`);
-      else toast.success(`⚔️ Quest "${quest.title}" Approved!`);
+      if (isDuelWin) toast.success(`⚔️ DUEL WON! Tugas Disetujui & Merampok ${DUEL_PENALTY[quest.difficulty]} XP!`);
+      else toast.success(`⚔️ Tugas "${quest.title}" Disetujui!`);
       
       await Promise.all([fetchQuests(), fetchUsers()]);
       

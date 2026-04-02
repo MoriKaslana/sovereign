@@ -99,7 +99,7 @@ const QuestCard = ({ quest }: { quest: Quest }) => {
       {/* FOOTER BUTTONS */}
       {quest.status === "open" && !quest.isDuel && (
         <Button onClick={() => acceptQuest(quest.id)} className="w-full font-heading" size="sm">
-          Accept Mission
+          Terima Tugas
         </Button>
       )}
 
@@ -110,7 +110,7 @@ const QuestCard = ({ quest }: { quest: Quest }) => {
           className={`w-full font-heading border ${isDuelActive ? 'bg-crimson hover:bg-red-700 border-white/20' : 'border-gold/30'}`} 
           size="sm"
         >
-          {isDuelActive ? "Finish Duel!" : "Submit Work"}
+          {isDuelActive ? "Finish Duel!" : "Kumpulkan Tugas"}
         </Button>
       )}
     </motion.div>
