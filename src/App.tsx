@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; // 👈 Tambah useNavigate & useLocation
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { GameProvider, useGame } from "@/context/GameContext";
 import AppSidebar from "@/components/AppSidebar";
@@ -15,7 +15,7 @@ import Codex from "@/pages/Codex";
 import HallOfFame from "@/pages/HallOfFame";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
-import { useEffect } from "react"; // 👈 Tambah useEffect
+import { useEffect } from "react"; 
 
 const queryClient = new QueryClient();
 
@@ -45,7 +45,7 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // JIKA SUDAH LOGIN: Tampilkan layout dashboard lo yang asli (tanpa diubah sedikitpun)
+  // JIKA SUDAH LOGIN: Tampilkan layout dashboard lo yang asli
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -69,6 +69,10 @@ const AuthenticatedApp = () => {
               <Route path="/fame" element={<HallOfFame />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/" element={<Navigate to="/quests" replace />} />
+              
+              {/* 👇 TAMBAHAN GW DI SINI BIAR GAK ERROR 404 LAGI 👇 */}
+              <Route path="/login" element={<Navigate to="/quests" replace />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

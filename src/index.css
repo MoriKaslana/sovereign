@@ -100,3 +100,32 @@
     color: hsl(var(--crimson));
   }
 }
+
+/* Update: Custom Scrollbar untuk Tema Sovereign Guild */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 8px; /* Ukuran lebih ramping agar elegan */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background)); /* Menyesuaikan dengan warna background utama */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    /* Menggunakan warna emas dengan transparansi 50% */
+    background: hsl(var(--gold) / 0.5);
+    border-radius: 10px;
+    /* Memberikan jarak (gap) antara thumb dan track */
+    border: 2px solid hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--gold)); /* Emas menyala penuh saat kursor di atasnya */
+  }
+
+  /* Dukungan untuk browser Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--gold) / 0.5) hsl(var(--background));
+  }
+}

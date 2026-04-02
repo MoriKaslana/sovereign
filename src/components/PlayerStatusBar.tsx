@@ -33,26 +33,35 @@ const PlayerStatusBar = () => {
   const xpNeeded = xpForNextLevel - xpForCurrentLevel;
   const progressPercent = Math.min(100, (xpProgress / xpNeeded) * 100);
 
-  const allBuffs = currentUser.buffs || [];
-  const allDebuffs = currentUser.debuffs || [];
+  // PENGAMAN 1: Pastikan buffs dan debuffs selalu array
+  const allBuffs = Array.isArray(currentUser.buffs) ? currentUser.buffs : [];
+  const allDebuffs = Array.isArray(currentUser.debuffs) ? currentUser.debuffs : [];
   const hasStagnantSoul = allDebuffs.includes("Stagnant Soul");
 
   const getTimeRemaining = (name: string, isDebuff: boolean) => {
     if (isDebuff) {
-      const entry = currentUser.activeDebuffs?.find(e => e.name === name);
+      // PENGAMAN 2: Tambahkan check Array.isArray sebelum .find()
+      const activeDebuffs = Array.isArray(currentUser.activeDebuffs) ? currentUser.activeDebuffs : [];
+      const entry = activeDebuffs.find(e => e.name === name);
+      
       if (!entry) return null;
       if (entry.remainingQuests) return `${entry.remainingQuests} quest(s) remaining`;
       if (!entry.expiresAt) return "Until condition cleared";
+      
       const remaining = entry.expiresAt - Date.now();
       if (remaining <= 0) return "Expiring...";
       const hours = Math.floor(remaining / (1000 * 60 * 60));
       const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       return `${hours}h ${mins}m remaining`;
     }
-    const entry = currentUser.activeBuffs?.find(e => e.name === name);
-    // PENGAMAN: Jika entry tidak ditemukan (misal pencapaian permanen), return teks default agar tidak crash
+
+    // PENGAMAN 3: Tambahkan check Array.isArray sebelum .find()
+    const activeBuffs = Array.isArray(currentUser.activeBuffs) ? currentUser.activeBuffs : [];
+    const entry = activeBuffs.find(e => e.name === name);
+    
     if (!entry) return "Until condition cleared"; 
     if (!entry.expiresAt) return "Until condition cleared";
+    
     const remaining = entry.expiresAt - Date.now();
     if (remaining <= 0) return "Expiring...";
     const hours = Math.floor(remaining / (1000 * 60 * 60));

@@ -9,7 +9,7 @@ export type QuestStatus = "open" | "accepted" | "submitted" | "completed" | "rej
 export interface BuffEntry {
   name: string;
   appliedAt: number;
-  expiresAt: number | null; // null = permanent until cleared
+  expiresAt: number | null; 
   questId?: string;
 }
 
@@ -18,10 +18,9 @@ export interface DebuffEntry {
   appliedAt: number;
   expiresAt: number | null;
   questId?: string;
-  remainingQuests?: number; // for quest-count-based debuffs like Stagnant Soul
+  remainingQuests?: number; 
 }
 
-// Tambahan Interface untuk Master Data dari DB
 export interface MasterBuff {
   id: string;
   title: string;
@@ -42,7 +41,7 @@ export interface Achievement {
   description: string;
   icon: string;
   xp_reward?: number;
-  unlockedBy: string[]; // Tetap ada untuk UI state
+  unlockedBy: string[]; 
 }
 
 export interface User {
@@ -107,8 +106,8 @@ interface GameState {
   quests: Quest[];
   chatMessages: ChatMessage[];
   achievements: Achievement[];
-  masterBuffs: MasterBuff[];     // 👈 Master Data Diexpose
-  masterDebuffs: MasterDebuff[]; // 👈 Master Data Diexpose
+  masterBuffs: MasterBuff[];     
+  masterDebuffs: MasterDebuff[]; 
   login: (identifier: string, password: string) => Promise<boolean>;
   register: (email: string, username: string, password: string, role: Role) => Promise<boolean>;
   logout: () => void;
@@ -147,8 +146,8 @@ const XP_MAP: Record<QuestDifficulty, number> = {
   legendary: 500 
 };
 
-const BUFF_DURATION = 24 * 60 * 60 * 1000; // 24 hours default
-const CHAIN_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
+const BUFF_DURATION = 24 * 60 * 60 * 1000; 
+const CHAIN_WINDOW = 24 * 60 * 60 * 1000; 
 
 const AVATARS = ["⚔️", "🛡️", "🧙", "🏹", "🗡️", "🔮", "🐉", "🦅", "🐺", "🦁"];
 
@@ -159,7 +158,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [quests, setQuests] = useState<Quest[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   
-  // State Dinamis untuk Kamus Data dari Database
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [masterBuffs, setMasterBuffs] = useState<MasterBuff[]>([]);
   const [masterDebuffs, setMasterDebuffs] = useState<MasterDebuff[]>([]);
@@ -167,7 +165,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messageCount, setMessageCount] = useState<Record<string, number>>({});
   const guildId = "sovereign-guild";
 
-  // --- FETCH MASTER DATA DICTIONARY (NO MORE HARDCODE) ---
+  // UPDATE 1: fetchMasterData pakai Supabase Client
   const fetchMasterData = useCallback(async () => {
     try {
       const [achRes, buffRes, debuffRes] = await Promise.all([
@@ -177,93 +175,104 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]);
 
       if (achRes.data) {
-        setAchievements(achRes.data.map(a => ({
-          id: a.id,
-          title: a.title,
-          description: a.description,
-          icon: a.icon,
-          xp_reward: a.xp_reward,
-          unlockedBy: [] // Akan diisi dinamis oleh listener realtime / sinkronisasi users
+        setAchievements(achRes.data.map((a: any) => ({
+          ...a,
+          title: a.title || a.name || "Untitled", 
+          unlockedBy: []
         })));
       }
+      
       if (buffRes.data) {
-        setMasterBuffs(buffRes.data.map(b => ({
-          id: b.id, title: b.title, description: b.description, icon: b.icon
+        setMasterBuffs(buffRes.data.map((b: any) => ({
+          id: b.id,
+          title: b.title || b.name || b.id, 
+          description: b.description || "",
+          icon: b.icon || "✨"
         })));
       }
+      
       if (debuffRes.data) {
-        setMasterDebuffs(debuffRes.data.map(d => ({
-          id: d.id, title: d.title, description: d.description, icon: d.icon
+        setMasterDebuffs(debuffRes.data.map((d: any) => ({
+          id: d.id,
+          title: d.title || d.name || d.id, 
+          description: d.description || "",
+          icon: d.icon || "💀"
         })));
       }
     } catch (error) {
-      console.error("Gagal menarik master data:", error);
+      console.error("Master Data Fetch Error:", error);
     }
   }, []);
 
-  // --- DATA FETCHERS (SUPABASE SYNC) ---
+  // UPDATE 2: fetchUsers pakai Supabase Client
   const fetchUsers = useCallback(async () => {
-    const { data, error } = await supabase.from('users').select('*');
-    if (!error && data) {
-      const mapped: User[] = data.map(u => ({
-        id: u.id, 
-        email: u.email, 
-        username: u.username, 
-        role: u.role as Role, 
-        avatar: u.avatar,
-        achievements: u.achievements || [],
-        xp: u.xp || 0, 
-        level: u.level || 1, 
-        buffs: u.buffs || [], 
-        debuffs: u.debuffs || [],
-        activeBuffs: u.active_buffs || [], 
-        activeDebuffs: u.active_debuffs || [],
-        guildId: u.guild_id, 
-        questsCompleted: u.quests_completed || 0,
-        joinedAt: u.joined_at || Date.now(), 
-        lastQuestCompletedAt: u.last_quest_completed_at ? Number(u.last_quest_completed_at) : null,
-        consecutiveLateCount: u.consecutive_late_count || 0, 
-        debuffImmunity: u.debuff_immunity || false,
-        stagnantSoulCounter: u.stagnant_soul_counter || 0, 
-        rustyEquipment: u.rusty_equipment || false,
-        brokenShieldQuests: u.broken_shield_quests || [],
-        isGuildMaster: u.is_guild_master || false, 
-        isAdventurer: u.is_adventurer || false,     
-        availableRoles: [ 
-          ...(u.is_guild_master ? ['guild_master'] : []),
-          ...(u.is_adventurer ? ['adventurer'] : []),
-        ] as Role[]
-      }));
+    try {
+      const { data, error } = await supabase.from('users').select('*');
       
-      setUsers(mapped);
+      if (error) throw error;
+      
+      if (Array.isArray(data)) {
+        const mapped: User[] = data.map((u: any) => ({
+          id: u.id, 
+          email: u.email, 
+          username: u.username, 
+          role: u.role as Role, 
+          avatar: u.avatar,
+          achievements: u.achievements || [],
+          xp: u.xp || 0, 
+          level: u.level || 1, 
+          buffs: u.buffs || [], 
+          debuffs: u.debuffs || [],
+          activeBuffs: u.active_buffs || u.activebuffs || [], 
+          activeDebuffs: u.active_debuffs || u.activedebuffs || [],
+          guildId: u.guild_id || u.guildid || "", 
+          questsCompleted: u.quests_completed || u.questscompleted || 0,
+          joinedAt: u.joined_at || u.joinedat || Date.now(), 
+          lastQuestCompletedAt: u.last_quest_completed_at ? Number(u.last_quest_completed_at) : null,
+          consecutiveLateCount: u.consecutive_late_count || u.consecutivelatecount || 0, 
+          debuffImmunity: u.debuff_immunity || u.debuffimmunity || false,
+          stagnantSoulCounter: u.stagnant_soul_counter || u.stagnantsoulcounter || 0, 
+          rustyEquipment: u.rusty_equipment || u.rustyequipment || false,
+          brokenShieldQuests: u.broken_shield_quests || u.brokenshieldquests || [],
+          isGuildMaster: u.is_guild_master || u.isguildmaster || false, 
+          isAdventurer: u.is_adventurer || u.isadventurer || false,     
+          availableRoles: [ 
+            ...(u.is_guild_master || u.isguildmaster ? ['guild_master'] : []),
+            ...(u.is_adventurer || u.isadventurer ? ['adventurer'] : []),
+          ] as Role[]
+        }));
+        
+        setUsers(mapped);
 
-      // SINKRONISASI DATA USER YG SEDANG LOGIN
-      const storedUser = localStorage.getItem('game_user');
-      if (storedUser) {
-        const currentLocal = JSON.parse(storedUser);
-        const myUpdatedData = mapped.find(u => u.id === currentLocal.id);
+        const storedUser = localStorage.getItem('game_user');
+        if (storedUser) {
+          const currentLocal = JSON.parse(storedUser);
+          const myUpdatedData = mapped.find(u => u.id === currentLocal.id);
 
-        if (myUpdatedData) {
-          setCurrentUser(prev => {
-            const hasChanged = !prev || 
-              prev.xp !== myUpdatedData.xp || 
-              prev.level !== myUpdatedData.level ||
-              prev.achievements?.length !== myUpdatedData.achievements?.length;
+          if (myUpdatedData) {
+            setCurrentUser(prev => {
+              const hasChanged = !prev || 
+                prev.xp !== myUpdatedData.xp || 
+                prev.level !== myUpdatedData.level ||
+                prev.achievements?.length !== myUpdatedData.achievements?.length;
 
-            if (hasChanged) {
-              localStorage.setItem('game_user', JSON.stringify(myUpdatedData));
-              return myUpdatedData;
-            }
-            return prev;
-          });
+              if (hasChanged) {
+                localStorage.setItem('game_user', JSON.stringify(myUpdatedData));
+                return myUpdatedData;
+              }
+              return prev;
+            });
+          }
         }
       }
+    } catch (error) {
+       console.error("Fetch Users Error:", error);
     }
   }, []);
 
   const fetchQuests = useCallback(async () => {
     if (!currentUser) return;
-
+    
     let query = supabase.from('quests').select('*');
 
     if (currentUser.guildId && currentUser.guildId !== "") {
@@ -299,8 +308,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setQuests(mappedQuests);
   }, [currentUser?.id, currentUser?.guildId]);
 
-  // --- SINKRONISASI OTOMATIS ACHIEVEMENT UI ---
-  // Menjamin array 'unlockedBy' di UI selalu up to date tiap ada perubahan di list users
   useEffect(() => {
     if (users.length > 0 && achievements.length > 0) {
       setAchievements(prev => {
@@ -313,61 +320,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return isChanged ? next : prev;
       });
     }
-  }, [users]); // 👈 Trigger tiap users direfresh
+  }, [users]); 
 
-
-  // --- REALTIME SYNC (SATPAM GLOBAL) ---
+  // UPDATE 3: Matikan Realtime Users & Quests (Biar gak timeout)
+  // Diganti pakai Polling tiap 10 detik
   useEffect(() => {
     if (!currentUser?.id) return;
 
     fetchQuests();
     fetchUsers();
 
+    const interval = setInterval(() => {
+      fetchQuests();
+      fetchUsers();
+    }, 5000);
+
+    /*
     const userChannel = supabase
       .channel(`user-changes-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${currentUser.id}` },
-        (payload) => {
-          const updated = payload.new as any;
-          setCurrentUser(prev => {
-            if (!prev) return null;
-            const newUser = {
-              ...prev,
-              xp: updated.xp,
-              level: updated.level,
-              buffs: updated.buffs || [],
-              debuffs: updated.debuffs || [],
-              activeBuffs: updated.active_buffs || [],
-              activeDebuffs: updated.active_debuffs || [],
-              achievements: updated.achievements || [], // Sinkronkan achievements juga
-              questsCompleted: updated.quests_completed,
-              guildId: updated.guild_id || "",
-              lastQuestCompletedAt: updated.last_quest_completed_at ? Number(updated.last_quest_completed_at) : null
-            };
-            localStorage.setItem('game_user', JSON.stringify(newUser));
-            return newUser;
-          });
-        }
-      )
+      .on(...)
       .subscribe();
 
     const questChannel = supabase
       .channel('quest-global-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'quests' },
-        (payload) => fetchQuests()
-      )
+      .on(...)
       .subscribe();
+    */
 
     return () => {
-      supabase.removeChannel(userChannel);
-      supabase.removeChannel(questChannel);
+      clearInterval(interval);
+      // supabase.removeChannel(userChannel);
+      // supabase.removeChannel(questChannel);
     };
   }, [currentUser?.id]);
 
-  // --- DATABASE HELPER ---
+  // UPDATE 4: updateUserInDb pakai Supabase Client
   const updateUserInDb = async (user: User) => {
     try {
       const { error } = await supabase
@@ -405,10 +392,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- PERSISTENCE LOGIC ---
   useEffect(() => {
     const savedUser = localStorage.getItem('game_user');
     if (savedUser) {
+      
       try {
         setCurrentUser(JSON.parse(savedUser));
       } catch (e) {
@@ -416,9 +403,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    fetchMasterData(); // 👈 Initial Fetch Data Kamus dari DB
+    
+    fetchMasterData(); 
     fetchUsers();
-    fetchQuests();
+    cleanOldChats();
+    if(currentUser) fetchQuests();
   }, [fetchMasterData]); 
 
   useEffect(() => {
@@ -429,7 +418,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser]);
 
-  // --- GAME LOGIC ---
   const calcLevel = (xp: number) => Math.floor(xp / 200) + 1;
 
   const addBuff = (user: User, name: string, durationMs: number | null, questId?: string): User => {
@@ -579,14 +567,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { baseXp, bonuses, penalties, totalXp };
   };
 
-  // --- AUTH METHODS ---
+  // UPDATE 5: Register pakai Supabase Client
   const register = async (email: string, username: string, password: string, role: Role): Promise<boolean> => {
     try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
+      const { data: existingUsers } = await supabase.from('users').select('*').eq('email', email);
+      const existingUser = existingUsers && existingUsers.length > 0 ? existingUsers[0] : null;
 
       if (existingUser) {
         const isGM = existingUser.is_guild_master || false;
@@ -622,11 +607,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
 
-      const { data: userWithUsername } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', username)
-        .maybeSingle();
+      const { data: usernameUsers } = await supabase.from('users').select('*').eq('username', username);
+      const userWithUsername = usernameUsers && usernameUsers.length > 0 ? usernameUsers[0] : null;
 
       if (userWithUsername) {
         toast.error("Username ini sudah diambil Adventurer lain!");
@@ -647,7 +629,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         availableRoles: [role]
       };
 
-      const { error } = await supabase.from('users').insert([{ 
+      const { error: insertError } = await supabase.from('users').insert([{ 
         id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role, password_hash: password, 
         avatar: newUser.avatar, xp: newUser.xp, level: newUser.level, buffs: newUser.buffs, debuffs: newUser.debuffs,
         active_buffs: newUser.activeBuffs, active_debuffs: newUser.activeDebuffs, 
@@ -658,7 +640,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         is_guild_master: newUser.isGuildMaster, is_adventurer: newUser.isAdventurer 
       }]);
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+
       setUsers(prev => [...prev, newUser]);
       setCurrentUser(newUser);
       toast.success(role === "guild_master" ? `Guild created! Welcome, Master ${username}!` : `Welcome to the Guild, ${username}!`);
@@ -669,11 +652,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // UPDATE 6: Login pakai Supabase Client
   const login = async (identifier: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.from('users').select('*').or(`username.eq."${identifier}",email.eq."${identifier}"`).eq('password_hash', password).maybeSingle();
+      const { data: usersFound, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`username.eq.${identifier},email.eq.${identifier}`)
+        .eq('password_hash', password);
+
       if (error) throw error;
-      if (!data) { toast.error("Email/Username or Password Incorrect, Please Make Sure You are Sober!"); return false; }
+
+      if (!usersFound || usersFound.length === 0) {
+        toast.error("Email/Username or Password Incorrect, Please Make Sure You are Sober!");
+        return false;
+      }
+
+      const data = usersFound[0];
 
       const loggedInUser: User = {
         id: data.id, email: data.email, username: data.username, role: data.role as Role, avatar: data.avatar,
@@ -704,6 +699,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success("Logged out safely, Adventurer!");
   };
 
+  // UPDATE 7: switchRole pakai Supabase Client
   const switchRole = async (newRole: Role): Promise<void> => {
     if (!currentUser) return;
 
@@ -731,7 +727,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success(`Berhasil menjadi ${newRole === 'guild_master' ? 'Guild Master' : 'Adventurer'}!`, { icon });
   };
 
-  // --- QUEST METHODS ---
   const createQuest = async (title: string, description: string, difficulty: QuestDifficulty, deadlineTimestamp: number) => {
     if (!currentUser) return;
 
@@ -779,7 +774,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success("Quest has been accepted! Time to embark on your adventure!");
   };
 
-  const submitQuest = async (questId: string): Promise<void> => {
+ const submitQuest = async (questId: string): Promise<void> => {
     if (!currentUser) return;
     const now = Date.now();
     const quest = quests.find(q => q.id === questId);
@@ -800,9 +795,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const tempQuest = { ...quest, status: "submitted" as QuestStatus, submittedAt: now };
     const updatedUser = applyBuffsDebuffs(currentUser, tempQuest, now, quests);
+    
+    // UPDATE: Langsung update DB dan tarik data terbaru
     await updateUserInDb(updatedUser);
-    fetchQuests();
-    toast.success("Quest has been submitted! Awaiting Guild Master's approval. May the odds be ever in your favor!");
+    await fetchQuests(); // <--- Biar langsung berubah di list
+    
+    toast.success("Quest submitted! Awaiting Guild Master's approval.");
   };
 
   const rejectQuest = async (questId: string): Promise<void> => {
@@ -935,33 +933,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser?.guildId]);
 
+  // UPDATE 8: Matikan Realtime Chat, Diganti Polling tiap 5 detik (Kerasa dinamis tapi aman)
   useEffect(() => {
     if (!currentUser?.guildId) return;
 
     fetchGuildMessages();
 
+    const interval = setInterval(() => {
+      fetchGuildMessages();
+    }, 5000);
+
+    /*
     const channel = supabase
       .channel(`guild-room-${currentUser.guildId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `guild_id=eq.${currentUser.guildId}`
-        },
-        (payload) => {
-          const newMsg = payload.new as ChatMessage;
-          setChatMessages((prev) => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-        }
-      )
+      .on(...)
       .subscribe();
+    */
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
+      // supabase.removeChannel(channel);
     };
   }, [currentUser?.guildId, fetchGuildMessages]);
 
@@ -971,21 +962,62 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const { error } = await supabase.from('chat_messages').insert([{
-      content: content,
-      user_id: currentUser.id,
-      username: currentUser.username,
-      avatar: currentUser.avatar || "👤",
-      role: currentUser.role,
-      guild_id: currentUser.guildId
-    }]);
+    try {
+      // 1. Kirim pesan ke database
+      const { error: sendError } = await supabase.from('chat_messages').insert([{
+        content: content,
+        user_id: currentUser.id,
+        username: currentUser.username,
+        avatar: currentUser.avatar || "👤",
+        role: currentUser.role,
+        guild_id: currentUser.guildId
+      }]);
 
-    if (error) {
-      console.error("Gagal kirim chat:", error);
+      if (sendError) throw sendError;
+
+      // 2. Hitung jumlah total pesan user ini di guild sekarang
+      const { count, error: countError } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .eq('guild_id', currentUser.guildId);
+
+      if (countError) throw countError;
+
+      // 3. Logika Achievement
+      const currentAchievements = currentUser.achievements || [];
+      let newlyUnlocked = [...currentAchievements];
+      let hasNewAchievement = false;
+
+      // Cek untuk 1 pesan (Talkative)
+      if (count && count >= 1 && !currentAchievements.includes("Talkative")) {
+        newlyUnlocked.push("Talkative");
+        hasNewAchievement = true;
+        toast.success("🏆 ACHIEVEMENT UNLOCKED: Talkative!", {
+          description: "Berhasil mengirim pesan pertama di Tavern."
+        });
+      }
+
+      // Cek untuk 10 pesan (Tavern Regular)
+      if (count && count >= 10 && !currentAchievements.includes("Tavern Regular")) {
+        newlyUnlocked.push("Tavern Regular");
+        hasNewAchievement = true;
+        toast.success("🏆 ACHIEVEMENT UNLOCKED: Tavern Regular!", {
+          description: "10 pesan terkirim. Kamu sudah jadi pelanggan tetap!"
+        });
+      }
+
+      // 4. Jika ada achievement baru, update database user
+      if (hasNewAchievement) {
+        const updatedUser = { ...currentUser, achievements: newlyUnlocked };
+        await updateUserInDb(updatedUser);
+      }
+
+    } catch (error) {
+      console.error("Gagal kirim chat atau cek achievement:", error);
       toast.error("Failed to send message");
     }
   };
-
   const sendInvite = async (email: string) => {
     if (!currentUser) return;
     try {
@@ -1077,6 +1109,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+const cleanOldChats = async () => {
+  try {
+    const expiryTime = new Date();
+    expiryTime.setHours(expiryTime.getHours() - 24);
+
+    const { error } = await supabase
+      .from('tavern_chats') // <--- PASTIIN INI SAMA PERSIS DENGAN DI DB
+      .delete()
+      .lt('created_at', expiryTime.toISOString());
+
+    if (error) throw error;
+    console.log("🧹 Auto-maintenance success.");
+  } catch (err) {
+    console.error("Gagal bersih-bersih DB:", err);
+  }
+};
   return (
     <GameContext.Provider value={{
       currentUser, 
@@ -1084,8 +1132,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       quests, 
       chatMessages, 
       achievements,
-      masterBuffs,   // 👈 Ter-export ke seluruh UI
-      masterDebuffs, // 👈 Ter-export ke seluruh UI
+      masterBuffs,   
+      masterDebuffs, 
       login, 
       register, 
       logout, 

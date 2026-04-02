@@ -33,10 +33,12 @@ export function InvitationInbox() {
     if (!error) setInvites(data || []);
   };
 
-  useEffect(() => {
+useEffect(() => {
     fetchInvites();
 
-    // Subscribe biar kalau di-invite langsung muncul badge merah
+    // TAHAP 1: Matikan Realtime karena PostgREST lokal tidak support WebSocket/Channel
+    // Kita komentari dulu agar tidak bikin PostgREST Timeout
+    /*
     const channel = supabase
       .channel("realtime_invites")
       .on("postgres_changes", { 
@@ -50,6 +52,7 @@ export function InvitationInbox() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+    */
   }, [currentUser]);
 
   if (invites.length === 0) return null;
