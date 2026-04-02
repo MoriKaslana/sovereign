@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useGame } from "@/context/GameContext";
-import { Trophy, Star, ShieldAlert } from "lucide-react";
+import { Trophy, Star, ShieldAlert, Swords } from "lucide-react"; // <- TAMBAH SWORDS
 import { Button } from "@/components/ui/button";
 import ExileDialog from "@/components/ExiledDialog"; 
 import { User } from "@/context/GameContext";
+import { toast } from "sonner";
 
 const HallOfFame = () => {
-  const { users, achievements, currentUser, kickMember } = useGame();
+  const { users, achievements, currentUser, kickMember, quests, sendDuelChallenge } = useGame();
   
   // --- STATE FOR RPG EXILE DIALOG ---
   const [isExileDialogOpen, setIsExileDialogOpen] = useState(false);
@@ -115,22 +116,47 @@ const HallOfFame = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-4">
+              {/* KOLOM AKSI (EXILE & DUEL) */}
+              <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="font-heading text-gold text-sm">{u.xp} XP</div>
                   <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Titles</div>
                 </div>
 
-                {currentUser?.role === "guild_master" && u.id !== currentUser.id && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                    onClick={() => openExileConfirmation(u)}
-                  >
-                    <ShieldAlert className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {/* TOMBOL EXILE (GM ONLY) */}
+                  {currentUser?.role === "guild_master" && u.id !== currentUser.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                      onClick={() => openExileConfirmation(u)}
+                    >
+                      <ShieldAlert className="h-4 w-4" />
+                    </Button>
+                  )}
+
+                  {/* TOMBOL DUEL (MUNCUL UNTUK USER LAIN) */}
+                  {u.id !== currentUser?.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gold/60 hover:text-gold hover:bg-gold/10 transition-colors"
+                      onClick={() => {
+                        // Cari apakah lo punya quest yang berstatus 'accepted'
+                        const myQuest = quests.find(q => q.assignedTo === currentUser?.id && q.status === "accepted");
+                        if (!myQuest) {
+                          toast.error("Kamu harus mengambil (Accept) minimal 1 quest dulu untuk menantang!");
+                          return;
+                        }
+                        sendDuelChallenge(myQuest.id, u.id);
+                      }}
+                      title="Tantang Duel"
+                    >
+                      <Swords className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))}
@@ -145,14 +171,13 @@ const HallOfFame = () => {
         
         <div className="grid gap-3 md:grid-cols-2">
           {achievements.map((a, i) => {
-            // --- KUNCI UPDATE: CEK TITLE ATAU ID UNTUK FLEXIBILITAS ---
             const isUnlockedInProfile = currentUser?.achievements?.some((userAch) => {
-            const normalizedDb = userAch.toLowerCase().replace(/_/g, " ").trim();
-            const normalizedTitle = a.title.toLowerCase().replace(/_/g, " ").trim();
-            const normalizedId = a.id.toLowerCase().replace(/_/g, " ").trim();
+              const normalizedDb = userAch.toLowerCase().replace(/_/g, " ").trim();
+              const normalizedTitle = a.title.toLowerCase().replace(/_/g, " ").trim();
+              const normalizedId = a.id.toLowerCase().replace(/_/g, " ").trim();
 
-  return normalizedDb === normalizedTitle || normalizedDb === normalizedId;
-});
+              return normalizedDb === normalizedTitle || normalizedDb === normalizedId;
+            });
             const isUnlockedByState = a.unlockedBy?.includes(currentUser?.id || "");
             const unlocked = isUnlockedInProfile || isUnlockedByState;
             

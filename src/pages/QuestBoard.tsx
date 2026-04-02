@@ -9,14 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Swords, Scroll as ScrollIcon } from "lucide-react"; // Tambah icon
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import QuestCard from "@/components/QuestCard";
 import InviteModal from "@/components/InviteModal";
 
 const QuestBoard = () => {
-  const { currentUser, quests, createQuest } = useGame();
+  const { currentUser, quests, createQuest, respondToDuel, users } = useGame();
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [diff, setDiff] = useState<QuestDifficulty>("medium");
@@ -28,10 +28,23 @@ const QuestBoard = () => {
 
   const isGM = currentUser?.role === "guild_master";
 
-  const openQuests = quests.filter(q => q.status === "open");
+  // --- LOGIKA FILTER BARU ---
+  const openQuests = quests.filter(q => q.status === "open" && !q.isDuel); 
+  
+  // Sekarang Active Quests termasuk duel yang sudah accepted
   const myActive = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "accepted");
+  
   const mySubmitted = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "submitted");
   const myCompleted = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "completed");
+
+  // Cari tantangan duel yang masuk (Invitation Scroll)
+  const incomingDuel = quests.find(q => 
+    q.isDuel && 
+    q.duelStatus === "pending" && 
+    q.duelOpponentId === currentUser?.id
+  );
+
+  const challenger = users.find(u => u.id === incomingDuel?.challengerId);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,21 +59,79 @@ const QuestBoard = () => {
     setTitle(""); setDesc(""); setDeadlineDate(undefined); setOpen(false);
   };
 
-  const diffColors: Record<QuestDifficulty, string> = {
-    easy: "text-emerald-glow",
-    medium: "text-gold",
-    hard: "text-crimson",
-    legendary: "text-royal-purple",
-  };
-
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto relative">
+      
+      {/* --- INVITATION SCROLL POP-UP --- */}
+      <AnimatePresence>
+        {incomingDuel && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md bg-[#fdf2d9] border-y-[12px] border-[#8b5a2b] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
+              style={{ borderRadius: "2px" }}
+            >
+              {/* Texture Kertas Kuno */}
+              <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/old-paper.png')]" />
+              
+              <div className="relative z-10 text-center space-y-6">
+                <div className="flex justify-center">
+                  <div className="p-4 bg-[#8b5a2b]/10 rounded-full border border-[#8b5a2b]/20">
+                    <Swords className="h-12 w-12 text-[#8b5a2b] animate-pulse" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="font-heading text-3xl text-[#5d4037] uppercase tracking-tighter">Duel Challenge!</h2>
+                  <div className="h-0.5 w-24 bg-[#8b5a2b]/30 mx-auto" />
+                </div>
+
+                <p className="font-body text-[#795548] text-lg leading-relaxed italic">
+                  "Hear ye, adventurer! <span className="font-bold text-[#5d4037]">@{challenger?.username}</span> has challenged thee to a trial of speed on the quest: 
+                  <br/>
+                  <span className="not-italic font-heading text-sm bg-[#8b5a2b]/10 px-2 py-1 rounded mt-2 inline-block">
+                    {incomingDuel.title}
+                  </span>"
+                </p>
+
+                <div className="flex gap-3 pt-4 font-heading">
+                  <Button 
+                    onClick={() => respondToDuel && respondToDuel(incomingDuel.id, 'accept')}
+                    className="flex-1 bg-[#8b5a2b] hover:bg-[#5d4037] text-[#fdf2d9] py-6 text-lg shadow-lg"
+                  >
+                    ACCEPT FIGHT
+                  </Button>
+                  <Button 
+                    onClick={() => respondToDuel && respondToDuel(incomingDuel.id, 'reject')}
+                    variant="outline"
+                    className="flex-1 border-[#8b5a2b] text-[#8b5a2b] hover:bg-[#8b5a2b]/10 py-6 text-lg"
+                  >
+                    DECLINE
+                  </Button>
+                </div>
+              </div>
+
+              {/* Dekorasi Gulungan Samping */}
+              <div className="absolute -left-6 top-0 bottom-0 w-8 bg-[#6d4c41] rounded-full shadow-inner" />
+              <div className="absolute -right-6 top-0 bottom-0 w-8 bg-[#6d4c41] rounded-full shadow-inner" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="font-heading text-2xl text-gold">📜 Quest Board</h1>
+        <h1 className="font-heading text-2xl text-gold flex items-center gap-2">
+          <ScrollIcon className="h-6 w-6" />
+          Quest Board
+        </h1>
         <div className="flex gap-2">
           {isGM && <InviteModal />}
           {isGM && (
             <Dialog open={open} onOpenChange={setOpen}>
+              {/* ... trigger & content dialog post quest lo tetep sama ... */}
               <DialogTrigger asChild>
                 <Button className="font-heading">+ Post Quest</Button>
               </DialogTrigger>
@@ -160,17 +231,21 @@ const QuestBoard = () => {
         </div>
       </div>
 
-      {/* Open Quests */}
+      {/* --- SECTIONS --- */}
       <Section title="Available Quests" count={openQuests.length}>
         {openQuests.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
 
+      {/* Duel Challenges HAPUS (Sudah diganti pop-up & masuk ke Active) */}
+
       <Section title="Active Quests" count={myActive.length}>
         {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
+
       <Section title="Submitted (Awaiting Review)" count={mySubmitted.length} glow="gold">
         {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
+
       <Section title="Completed" count={myCompleted.length} glow="green">
         {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
       </Section>
@@ -178,6 +253,7 @@ const QuestBoard = () => {
   );
 };
 
+// ... Section component tetap sama ...
 const Section = ({ title, count, children, glow }: { title: string; count: number; children: React.ReactNode; glow?: "gold" | "green" }) => (
   <div className="mb-8">
     <h2 className="font-heading text-lg text-foreground mb-3 flex items-center gap-2">
