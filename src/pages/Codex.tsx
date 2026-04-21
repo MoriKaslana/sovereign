@@ -1,18 +1,18 @@
 import { motion } from "framer-motion";
 
 const BUFFS = [
-  { name: "Adventurer's Haste", icon: "⚡", desc: "Didapatkan dengan mengirimkan misi setidaknya 24 jam sebelum batas waktu. Kecepatanmu sungguh legendaris!", howTo: "Kirimkan tugas apa pun dengan sisa waktu 24 jam atau lebih sebelum batas waktu.", effect: "+50% XP Bonus", duration: "Bertahan 24 Jam" },
+  { name: "Adventurer's Haste", icon: "⚡", desc: "Didapatkan dengan mengirimkan tugas setidaknya 24 jam sebelum batas waktu. Kecepatanmu sungguh legendaris!", howTo: "Kirimkan tugas apa pun dengan sisa waktu 24 jam atau lebih sebelum batas waktu.", effect: "+50% XP Bonus", duration: "Bertahan 24 Jam" },
   { name: "Scholar's Focus", icon: "📚", desc: "Didapatkan dengan menyelesaikan tugas dengan tingkat kesulitan Hard. Dedikasimu terhadap tugas yang menantang sangat mengagumkan.", howTo: "Kirimkan tugas dengan tingkat kesulitan set ke Hard.", effect: "+20% XP Bonus", duration: "Bertahan 24 Jam" },
   { name: "Weekend Warrior", icon: "🗡️", desc: "Didapatkan dengan mengirimkan tugas pada akhir pekan. Bahkan di hari libur, kamu terus maju!", howTo: "Kirimkan tugas apa pun pada Sabtu atau Minggu.", effect: "+10% XP Bonus", duration: "Bertahan 24 Jam" },
   { name: "Night Owl", icon: "🦉", desc: "Didapatkan dengan mengirimkan tugas antara tengah malam dan 5 pagi. Guild tidak pernah tidur.", howTo: "Kirimkan tugas antara 12:00 AM dan 4:59 AM.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
   { name: "Clutch Player", icon: "🎯", desc: "Didapatkan dengan mengirimkan tugas tepat sebelum tenggat waktu — dalam 10% waktu terakhir. Hidup di ujung pedang!", howTo: "Kirimkan tugas ketika tersisa kurang dari 10% waktu total.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
   { name: "First Strike", icon: "⚔️", desc: "Didapatkan dengan mengirimkan tugas dalam 1 jam setelah menerimanya. Eksekusi yang cepat seperti kilat!", howTo: "Terima dan kirimkan tugas dalam waktu 60 menit.", effect: "Buff pengakuan", duration: "Bertahan 24 Jam" },
-  { name: "Chain Quest (Combo)", icon: "🔗", desc: "Earned by submitting 3 quests within a 24-hour window. You're on fire!", howTo: "Submit 3 quests within a rolling 24-hour period. The buff applies on the 3rd submission.", effect: "+15% XP Bonus on the 3rd quest", duration: "Lasts 24 hours" },
-  { name: "Aura of Purity", icon: "✨", desc: "The ultimate buff. Completing a Legendary quest purifies your soul, clearing all debuffs and granting immunity.", howTo: "Submit a quest with Legendary difficulty.", effect: "Clears ALL active debuffs + grants immunity to next debuff", duration: "Lasts 24 hours (immunity until consumed)" },
+  { name: "Chain Quest (Combo)", icon: "🔗", desc: "Didapatkan dengan mengirimkan 3 tugas dalam periode 24 jam. Kamu sedang dalam bentuk api!", howTo: "Kirimkan 3 tugas dalam jendela waktu 24 jam.", effect: "+15% XP Bonus pada tugas ketiga", duration: "Bertahan 24 Jam" },
+  { name: "Aura of Purity", icon: "✨", desc: "Didapatkan dengan menyelesaikan tugas dengan tingkat kesulitan Legendary. Jiwa mu menjadi murni, membersihkan semua debuff dan memberimu kekebalan.", howTo: "Kirimkan tugas dengan tingkat kesulitan Legendary.", effect: "Bersihkan SEMUA debuff aktif + memberikan kekebalan terhadap debuff berikutnya", duration: "Bertahan 24 Jam (kekebalan hingga dikonsumsi)" },
 ];
 
 const DEBUFFS = [
-  { name: "Cursed Procrastination", icon: "🐌", desc: "Diterapkan jika sebuah misi diajukan setelah batas waktu yang ditentukan. Waktu tidak menunggu siapa pun!", howTo: "Kirimkan tugas apa pun setelah batas waktu telah berlalu.", effect: "-10 XP Flat Penalty", duration: "Bertahan 48 Jam" },
+  { name: "Cursed Procrastination", icon: "🐌", desc: "Diterapkan jika sebuah tugas diajukan setelah batas waktu yang ditentukan. Waktu tidak menunggu siapa pun!", howTo: "Kirimkan tugas apa pun setelah batas waktu telah berlalu.", effect: "-10 XP Flat Penalty", duration: "Bertahan 48 Jam" },
   { name: "Slacker's Fatigue", icon: "😴", desc: "Diterapkan ketika kamu memiliki lebih dari 5 tugas aktif (diterima tapi belum dikirim). Terlalu banyak tugas membuatmu lelah.", howTo: "Terima lebih dari 5 tugas tanpa menyelesaikannya atau mengirimkannya.", effect: "-5% XP pada tugas berikutnya", duration: "Bertahan 24 Jam" },
   { name: "Rusty Equipment", icon: "🪓", desc: "Diterapkan setelah 3 hari tidak aktif. Seorang pejuang harus menjaga pedangnya tetap tajam!", howTo: "Tidak menyelesaikan tugas apa pun selama 3 hari berturut-turut.", effect: "Avatar menjadi grayscale; SEMUA buff dinonaktifkan hingga 1 tugas diselesaikan", duration: "Hingga kamu menyelesaikan sebuah tugas" },
   { name: "Broken Shield", icon: "🛡️💔", desc: "Diterapkan ketika Master Guild menolak tugas yang kamu kirim. Kepercayaanmu terguncang.", howTo: "Memiliki tugas yang dikirim ditolak oleh Master Guild.", effect: "-25% pengurangan XP ketika tugas tersebut akhirnya disetujui", duration: "Bertahan 48 Jam atau hingga tugas disetujui ulang" },
@@ -21,17 +21,17 @@ const DEBUFFS = [
 
 const ACHIEVEMENTS = [
   { name: "First Blood", icon: "⚔️", desc: "Selesaikan tugas pertamamu.", howTo: "Buat Tugas Pertama mu di Terima Oleh Guild Master." },
-  { name: "Elite Contributor", icon: "🛡️", desc: "Selesaikan 5 tugas.", howTo: "Kumpulkan 5 penyelesaian misi yang disetujui." },
-  { name: "Veteran", icon: "🏅", desc: "Selesaikan 10 tugas.", howTo: "Kumpulkan 10 penyelesaian misi yang disetujui." },
+  { name: "Elite Contributor", icon: "🛡️", desc: "Selesaikan 5 tugas.", howTo: "Kumpulkan 5 penyelesaian tugas yang disetujui." },
+  { name: "Veteran", icon: "🏅", desc: "Selesaikan 10 tugas.", howTo: "Kumpulkan 10 penyelesaian tugas yang disetujui." },
   { name: "Speed Demon", icon: "⚡", desc: "Kirimkan tugas dalam 1 jam setelah menerimanya.", howTo: "Terima tugas dan kirimkan dalam waktu 60 menit." },
   { name: "Legendary Slayer", icon: "👑", desc: "Selesaikan tugas dengan kesulitan legendary.", howTo: "Dapatkan persetujuan untuk quest dengan tingkat kesulitan Legendary." },
   { name: "Tavern Regular", icon: "🍻", desc: "Kirimkan 10 pesan di kedai ngumpul.", howTo: "Kirim setidaknya 10 pesan di obrolan Kedai Ngumpul." },
   { name: "Rising Star", icon: "⭐", desc: "Capai level 5.", howTo: "Kumpulkan XP yang cukup untuk mencapai level 5 (total 800 XP)." },
   { name: "Elite Warrior", icon: "💎", desc: "Capai level 10.", howTo: "Kumpulkan XP yang cukup untuk mencapai level 10 (total 1800 XP)." },
-  { name: "Hat Trick", icon: "🎯", desc: "Selesaikan 3 tugas berturut-turut tanpa terkena debuff.", howTo: "Selesaikan 3 misi berturut-turut tanpa mendapatkan efek negatif." },
-  { name: "Jack of All Trades", icon: "🃏", desc: "Selesaikan satu misi untuk setiap tingkat kesulitan.", howTo: "Selesaikan setidaknya satu tugas untuk setiap tingkat kesulitan: Easy, Medium, Hard, and Legendary." },
-  { name: "Night Owl", icon: "🦉", desc: "Kirimkan misi antara tengah malam dan pukul 5 pagi.", howTo: "Kirimkan misi apa pun antara pukul 12:00 AM dan 4:59 AM." },
-  { name: "Streak Master", icon: "🔥", desc: "Selesaikan 3 Tugas Berturut-turut.", howTo: "Selesaikan 3 misi secara beruntun tanpa kegagalan atau pembatalan." },
+  { name: "Hat Trick", icon: "🎯", desc: "Selesaikan 3 tugas berturut-turut tanpa terkena debuff.", howTo: "Selesaikan 3 tugas berturut-turut tanpa mendapatkan efek negatif." },
+  { name: "Jack of All Trades", icon: "🃏", desc: "Selesaikan satu tugas untuk setiap tingkat kesulitan.", howTo: "Selesaikan setidaknya satu tugas untuk setiap tingkat kesulitan: Easy, Medium, Hard, and Legendary." },
+  { name: "Night Owl", icon: "🦉", desc: "Kirimkan tugas antara tengah malam dan pukul 5 pagi.", howTo: "Kirimkan tugas apa pun antara pukul 12:00 AM dan 4:59 AM." },
+  { name: "Streak Master", icon: "🔥", desc: "Selesaikan 3 Tugas Berturut-turut.", howTo: "Selesaikan 3 tugas secara beruntun tanpa kegagalan atau pembatalan." },
 ];
 
 const ROLES = [
@@ -42,8 +42,8 @@ const ROLES = [
 const Codex = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="font-heading text-2xl text-gold mb-2">📖 Guild Codex</h1>
-      <p className="text-muted-foreground font-body mb-8">The sacred tome of guild knowledge</p>
+      <h1 className="font-heading text-2xl text-gold mb-2">📖 Naskah Guild</h1>
+      <p className="text-muted-foreground font-body mb-8">Naskah Suci tentang aturan dan tradisi Guild</p>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
         <CodexSection title="⚜️ Roles" items={ROLES} />

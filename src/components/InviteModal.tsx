@@ -20,12 +20,12 @@ const InviteModal = () => {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" className="font-heading border-gold/30 text-gold hover:bg-gold/10">
-          <UserPlus className="h-4 w-4 mr-1" /> Invite
+          <UserPlus className="h-4 w-4 mr-1" /> Undang
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="font-heading text-gold">Invite Adventurer</DialogTitle>
+          <DialogTitle className="font-heading text-gold">Undang Adventurer</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleInvite} className="space-y-4">
           <Input
@@ -37,7 +37,7 @@ const InviteModal = () => {
             className="bg-secondary"
           />
           {result && <p className="text-sm text-muted-foreground font-body">{result}</p>}
-          <Button type="submit" className="w-full font-heading">Send Raven</Button>
+          <Button type="submit" className="w-full font-heading">Kirim Undangan</Button>
         </form>
       </DialogContent>
     </Dialog>

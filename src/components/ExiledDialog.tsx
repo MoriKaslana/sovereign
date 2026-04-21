@@ -29,26 +29,26 @@ const ExileDialog: React.FC<ExileDialogProps> = ({ isOpen, onClose, onConfirm, m
             <ShieldAlert className="h-8 w-8 text-red-500" />
           </div>
           <DialogTitle className="font-heading text-xl text-red-400">
-            Judgment of Exile
+            Penghakiman Pengasingan
           </DialogTitle>
           <DialogDescription className="font-body text-muted-foreground pt-2">
-            Guild Master, you are about to banish <span className="text-foreground font-bold">{member.username}</span> {member.avatar} from the <span className="text-gold font-bold">Sovereign Guild</span>.
+            Guild Master, Anda akan mengusir <span className="text-foreground font-bold">{member.username}</span> {member.avatar} dari <span className="text-gold font-bold">Sovereign Guild</span>.
           </DialogDescription>
         </DialogHeader>
         
         <div className="bg-secondary/50 p-4 rounded-md border border-border my-2">
           <p className="text-xs text-muted-foreground font-body leading-relaxed text-center">
-            Their guild marks will be stripped, and they will become a wanderer once more. This decree is immediate and irrevocable.
+            Mereka akan kehilangan tanda guild mereka, dan akan menjadi seorang pengembara lagi. Decree ini langsung berlaku dan tidak dapat dibatalkan.
           </p>
         </div>
 
         <DialogFooter className="sm:justify-center gap-2 mt-2">
           <Button variant="outline" onClick={onClose} className="font-heading border-border">
-            Mercy
+            Ampuni
           </Button>
           <Button variant="destructive" onClick={onConfirm} className="font-heading gap-2 bg-red-600 hover:bg-red-700">
             <Gavel className="h-4 w-4" />
-            Seal Fate
+            Segel Takdir
           </Button>
         </DialogFooter>
       </DialogContent>

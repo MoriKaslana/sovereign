@@ -75,7 +75,7 @@ useEffect(() => {
           {invites.map((invite) => (
             <div key={invite.id} className="p-3 border-b border-white/5 last:border-0">
               <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                <span className="text-white font-bold">{invite.users?.username || "A Guild Master"}</span> memanggil lo untuk bergabung ke Guild mereka.
+                <span className="text-white font-bold">{invite.users?.username || "A Guild Master"}</span> memanggil anda untuk bergabung ke Guild mereka.
               </p>
               <div className="flex gap-2">
                 <Button 

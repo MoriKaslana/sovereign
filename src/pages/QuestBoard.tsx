@@ -109,7 +109,7 @@ const QuestBoard = () => {
                     variant="outline"
                     className="flex-1 border-[#8b5a2b] text-[#8b5a2b] hover:bg-[#8b5a2b]/10 py-6 text-lg"
                   >
-                    Tolak  
+                    Kabur  
                   </Button>
                 </div>
               </div>
@@ -150,7 +150,7 @@ const QuestBoard = () => {
                     <Textarea value={desc} onChange={e => setDesc(e.target.value)} required className="bg-secondary" />
                   </div>
                   <div>
-                    <Label>Kesusahan</Label>
+                    <Label>Kesulitan</Label>
                     <div className="flex gap-2 mt-1">
                       {(["easy", "medium", "hard", "legendary"] as QuestDifficulty[]).map(d => (
                         <button

@@ -136,7 +136,7 @@ const AuthScreen = () => {
           {error && <p className="text-crimson text-sm">{error}</p>}
 
           <Button type="submit" className="w-full font-heading">
-            {isLogin ? "Masuk Guild" : "Forge Your Destiny"}
+            {isLogin ? "Masuk Guild" : "Tempa Takdir Anda"}
           </Button>
         </form>
 
@@ -144,7 +144,7 @@ const AuthScreen = () => {
           onClick={() => { setIsLogin(!isLogin); setError(""); }}
           className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-gold transition-colors"
         >
-          {isLogin ? "Orang Baru ? Silahkan Daftar Dulu" : "Already a member? Enter"}
+          {isLogin ? "Seorang Pengembara ? Silahkan Daftar Dulu" : "Sudah menjadi anggota? Masuk"}
         </button>
       </motion.div>
     </div>

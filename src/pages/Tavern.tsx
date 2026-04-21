@@ -43,7 +43,7 @@ const Tavern = () => {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-3">
         {chatMessages.length === 0 && (
-          <p className="text-center text-muted-foreground font-body py-12">The tavern is quiet... be the first to speak!</p>
+          <p className="text-center text-muted-foreground font-body py-12">Meja masih kosong... Jadilah yang pertama untuk bercerita!</p>
         )}
         {chatMessages.map(m => {
           // DISESUAIKAN: Menggunakan user_id dari Supabase

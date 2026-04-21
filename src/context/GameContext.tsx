@@ -681,7 +681,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (!usersFound || usersFound.length === 0) {
-        toast.error("Email/Username or Password Incorrect, Please Make Sure You are Sober!");
+        toast.error("Email/Username or Password salah, pastikan anda tidak mabuk!");
         return false;
       }
 
@@ -713,7 +713,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('game_user');
-    toast.success("Logged out safely, Adventurer!");
+    toast.success("Logged out berhasil! Sampai jumpa lagi, Petualang!");
   };
 
   // UPDATE 7: switchRole pakai Supabase Client
@@ -888,7 +888,7 @@ const sendDuelChallenge = async (myQuestId: string, targetUserId: string) => {
         sendMessage(`⚔️ [CHALLENGE] @${currentUser.username} menantang duel @${users.find(u => u.id === targetUserId)?.username || 'Adventurer'} pada tingkat kesulitan ${myQuest.difficulty.toUpperCase()}!`);
       }
 
-      toast.success("Duel Challenge Sent! Waiting for response...");
+      toast.success("Permintaan duel berhasil dikirim! Menunggu respon dari lawanmu.");
     } catch (err: any) {
       console.error("Duel Error:", err);
       toast.error("Gagal mengirim tantangan duel.");
@@ -1177,7 +1177,7 @@ const sendDuelChallenge = async (myQuestId: string, targetUserId: string) => {
         }]);
 
       if (inviteError) throw inviteError;
-      toast.success(`Raven has Been Sent to ${email}!`);
+      toast.success(`Undangan berhasil Dikirim ke ${email}!`);
     } catch (error: any) {
       console.error("Invite Error:", error);
       toast.error("Gagal mengirim undangan.");
@@ -1206,7 +1206,7 @@ const sendDuelChallenge = async (myQuestId: string, targetUserId: string) => {
       setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
       localStorage.setItem('game_user', JSON.stringify(updatedUser));
 
-      toast.success("Welcome to the Guild, Keeps your sword sharp and your wits sharper!");
+      toast.success("Selamat datang di Guild baru! Saatnya berpetualang bersama!");
       
       await fetchUsers(); 
       fetchQuests(); 
