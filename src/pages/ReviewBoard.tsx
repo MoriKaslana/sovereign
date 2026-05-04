@@ -14,7 +14,7 @@ const ReviewBoard = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="font-heading text-2xl text-gold mb-6">⚖️ Review Board</h1>
+      <h1 className="font-heading text-2xl text-gold mb-6">⚖️ Papan Ulasan</h1>
 
       {submitted.length === 0 && (
         <p className="text-muted-foreground font-body text-center py-12">No quests awaiting review.</p>

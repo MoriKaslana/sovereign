@@ -21,6 +21,7 @@ import {
   DUEL_PENALTY 
 } from "./services/gamificationService";
 import { userService } from "./services/userService";
+import { achievementService } from "./services/achievementsService";
 
 const GameContext = createContext<GameState | null>(null);
 
@@ -333,7 +334,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) { toast.error("Gagal submit."); }
   };
 
-  const approveQuest = async (questId: string): Promise<void> => {
+const approveQuest = async (questId: string): Promise<void> => {
     if (!currentUser || currentUser.role !== "guild_master") return;
     const quest = quests.find(q => q.id === questId);
     if (!quest || !quest.assignedTo) return;
@@ -341,11 +342,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!adventurer) return;
     const now = Date.now();
     let penaltyXP = 0; 
+
     try {
       await questActionService.approveQuestDb(questId, new Date(now).toISOString());
       let xpBreakdown = gamificationService.calcXpWithModifiers(adventurer, quest);
       let totalXpGained = xpBreakdown.totalXp;
       let isDuelWin = false;
+
+      // --- LOGIC DUEL (DIPERTAHANKAN) ---
       if (quest.isDuel && quest.duelStatus === 'accepted' && quest.duelOpponentId) {
         isDuelWin = true;
         penaltyXP = DUEL_PENALTY[quest.difficulty];
@@ -360,21 +364,52 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         await questActionService.clearWinnerDuelStatus(quest.id);
       }
+
+      // --- HITUNG PROGRES (DIPERTAHANKAN) ---
       const newXp = adventurer.xp + totalXpGained;
       const oldLevel = adventurer.level;
       const newLevel = gamificationService.calcLevel(newXp);
-      let updated: User = { ...adventurer, xp: newXp, level: newLevel, questsCompleted: (adventurer.questsCompleted || 0) + 1, lastQuestCompletedAt: now };
-      const newlyUnlocked: string[] = [];
-      if (updated.questsCompleted === 1) newlyUnlocked.push("First Quest");
-      updated.achievements = [...(adventurer.achievements || []), ...newlyUnlocked];
+      
+      let updated: User = { 
+        ...adventurer, 
+        xp: newXp, 
+        level: newLevel, 
+        questsCompleted: (adventurer.questsCompleted || 0) + 1, 
+        lastQuestCompletedAt: now 
+      };
+
+      // --- UPDATE ACHIEVEMENTS (DIPERBAIKI) ---
+      // Manggil service baru buat ngecek 12+ achievement sekaligus
+      const currentQuestWithCompleteTime = { ...quest, status: 'completed' as const, completedAt: now };
+      const newAwards = achievementService.checkAchievements(updated, quests, currentQuestWithCompleteTime);
+
+      if (newAwards.length > 0) {
+        // Gabungin achievement lama + baru tanpa duplikat
+        updated.achievements = Array.from(new Set([...(adventurer.achievements || []), ...newAwards]));
+        
+        // Notif tiap achievement baru
+        newAwards.forEach(id => {
+          toast.success(`🏆 Achievement Unlocked: ${id}`);
+        });
+      }
+
+      // --- LOGIC BUFF & CLEANUP (DIPERTAHANKAN) ---
       updated = applyBuffsDebuffs(updated, quest, now, quests);
-      if (updated.brokenShieldQuests) updated.brokenShieldQuests = updated.brokenShieldQuests.filter(id => id !== quest.id);
+      if (updated.brokenShieldQuests) {
+        updated.brokenShieldQuests = updated.brokenShieldQuests.filter(id => id !== quest.id);
+      }
       updated = gamificationService.cleanExpiredEffects(updated);
+
+      // --- SAVE KE DB ---
       await updateUserInDb(updated);
+
       if (newLevel > oldLevel) toast.success(`🎊 LEVEL UP!`);
       toast.success(isDuelWin ? "⚔️ DUEL WON!" : "⚔️ Quest Approved!");
+      
       await Promise.all([fetchQuests(), fetchUsers()]);
-    } catch (error) { toast.error("Gagal approve."); }
+    } catch (error) { 
+      toast.error("Gagal approve."); 
+    }
   };
 
   const rejectQuest = async (questId: string): Promise<void> => {
@@ -423,16 +458,52 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // --- TAVERN (CHAT) ---
-  const sendMessage = async (content: string) => {
+const sendMessage = async (content: string) => {
     if (!currentUser?.guildId) { toast.error("Masuk Guild dulu!"); return; }
     try {
-      await chatService.postMessage({ content, user_id: currentUser.id, username: currentUser.username, avatar: currentUser.avatar || "👤", role: currentUser.role, guild_id: currentUser.guildId });
+      // 1. Kirim pesan (Tetap sama seperti aslinya)
+      await chatService.postMessage({ 
+        content, 
+        user_id: currentUser.id, 
+        username: currentUser.username, 
+        avatar: currentUser.avatar || "👤", 
+        role: currentUser.role, 
+        guild_id: currentUser.guildId 
+      });
+
+      // 2. Ambil jumlah pesan terbaru
       const count = await chatService.getMessageCount(currentUser.id, currentUser.guildId);
-      if (count === 1 && !currentUser.achievements?.includes("Talkative")) {
-        await updateUserInDb({ ...currentUser, achievements: [...(currentUser.achievements || []), "Talkative"] });
-        toast.success("🏆 Achievement: Talkative!");
+      
+      // 3. Cek Achievement via Service (Gabungin logic 'Talkative' & 'Tavern Regular')
+      // Kita kirim 'count' sebagai argumen terakhir sesuai struktur service baru kita
+      const newAwards = achievementService.checkAchievements(currentUser, quests, undefined, count);
+
+      if (newAwards.length > 0) {
+        // Gabungkan achievement tanpa duplikat
+        const updatedUser = { 
+          ...currentUser, 
+          achievements: Array.from(new Set([...(currentUser.achievements || []), ...newAwards])) 
+        };
+        
+        // Update database
+        await updateUserInDb(updatedUser);
+        
+        // Notifikasi Toast sesuai ID yang didapat
+        newAwards.forEach(id => {
+          if (id === "Talkative") {
+            toast.success("🏆 Achievement: Talkative!");
+          } else if (id === "Tavern Regular") {
+            toast.success("🏆 ACHIEVEMENT UNLOCKED: Tavern Regular!", {
+              description: "10 pesan terkirim. Kamu sudah jadi pelanggan tetap!"
+            });
+          } else {
+            toast.success(`🏆 Achievement Unlocked: ${id}`);
+          }
+        });
       }
-    } catch (error) { toast.error("Gagal kirim pesan."); }
+    } catch (error) { 
+      toast.error("Gagal kirim pesan."); 
+    }
   };
 
   // --- GUILD ACTIONS ---

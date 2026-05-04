@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { useGame, Quest } from "@/context/GameContext";
+import { useGame} from "@/context/GameContext";
 import { Button } from "@/components/ui/button";
 import { Clock, Zap, CheckCircle, Send, Swords } from "lucide-react";
+import { Quest } from "@/types/game";
 
 const diffBadge: Record<string, string> = {
   easy: "bg-emerald/20 text-emerald-glow",

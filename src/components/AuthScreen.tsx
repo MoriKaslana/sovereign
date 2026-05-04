@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useGame, Role } from "@/context/GameContext";
+import { useGame} from "@/context/GameContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import authBg from "@/assets/auth-bg.jpg";
+import { Role } from "@/types/game";
 
 const AuthScreen = () => {
   const { login, register } = useGame();

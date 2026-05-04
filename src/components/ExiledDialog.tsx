@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Gavel } from "lucide-react";
-import { User } from "@/context/GameContext"; // Pastikan path import User bener
+import { User } from "@/types/game"; // Pastikan path import User bener
 
 interface ExileDialogProps {
   isOpen: boolean;

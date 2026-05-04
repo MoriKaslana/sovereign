@@ -166,7 +166,7 @@ const HallOfFame = () => {
       <div className="mt-12">
         <h2 className="font-heading text-lg text-foreground mb-4 flex items-center gap-2">
           <Star className="h-5 w-5 text-gold" />
-          Gelar Anda
+          Prestasi
         </h2>
         
         <div className="grid gap-3 md:grid-cols-2">
