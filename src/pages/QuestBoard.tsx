@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGame, QuestDifficulty, Quest } from "@/context/GameContext";
+import { QuestDifficulty, Quest } from "@/types/game";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import QuestCard from "@/components/QuestCard";
 import InviteModal from "@/components/InviteModal";
+import { useGame } from "@/context/GameContext";
+
 
 const QuestBoard = () => {
   const { currentUser, quests, createQuest, respondToDuel, users } = useGame();
