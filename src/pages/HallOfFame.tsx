@@ -4,7 +4,7 @@ import { useGame } from "@/context/GameContext";
 import { Trophy, Star, ShieldAlert, Swords } from "lucide-react"; // <- TAMBAH SWORDS
 import { Button } from "@/components/ui/button";
 import ExileDialog from "@/components/ExiledDialog"; 
-import { User } from "@/context/GameContext";
+import { User } from "@/types/game";
 import { toast } from "sonner";
 
 const HallOfFame = () => {
@@ -46,7 +46,7 @@ const HallOfFame = () => {
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="font-heading text-2xl text-gold mb-6 flex items-center gap-2">
         <Trophy className="h-6 w-6" />
-        Hall of Fame
+        Aula
       </h1>
 
       {/* Leaderboard Section */}
@@ -120,7 +120,7 @@ const HallOfFame = () => {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="font-heading text-gold text-sm">{u.xp} XP</div>
-                  <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Gelar</div>
+                  <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Prestasi</div>
                 </div>
 
                 <div className="flex items-center gap-1">

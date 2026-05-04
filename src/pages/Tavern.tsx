@@ -37,7 +37,7 @@ const Tavern = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-3rem)] max-w-3xl mx-auto">
       <div className="p-6 pb-0">
-        <h1 className="font-heading text-2xl text-gold">🍻 The Tavern</h1>
+        <h1 className="font-heading text-2xl text-gold">🍻 Warkop Ngumpul</h1>
         <p className="text-muted-foreground text-sm font-body">Ceritakan Kisah mu Wahai para Adventurer</p>
       </div>
 

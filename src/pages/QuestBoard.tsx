@@ -266,7 +266,7 @@ const Section = ({ title, count, children, glow }: { title: string; count: numbe
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <AnimatePresence>
         {count === 0 && (
-          <p className="text-muted-foreground font-body col-span-full text-center py-8">Sedang menunggu tugas baru...</p>
+          <p className="text-muted-foreground font-body col-span-full text-center py-8">Belum ada tugas</p>
         )}
         {children}
       </AnimatePresence>
