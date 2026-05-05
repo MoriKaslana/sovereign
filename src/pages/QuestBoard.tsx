@@ -9,13 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Swords, Scroll as ScrollIcon } from "lucide-react"; // Tambah icon
+import { CalendarIcon, Swords, Scroll as ScrollIcon, ShieldCheck, Sword, Timer, Archive } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import QuestCard from "@/components/QuestCard";
 import InviteModal from "@/components/InviteModal";
 import { useGame } from "@/context/GameContext";
-
 
 const QuestBoard = () => {
   const { currentUser, quests, createQuest, respondToDuel, users } = useGame();
@@ -30,16 +29,12 @@ const QuestBoard = () => {
 
   const isGM = currentUser?.role === "guild_master";
 
-  // --- LOGIKA FILTER BARU ---
-  const openQuests = quests.filter(q => q.status === "open" && !q.isDuel); 
-  
-  // Sekarang Active Quests termasuk duel yang sudah accepted
+  // --- LOGIKA FILTER ---
+  const openQuests = quests.filter(q => q.status === "open" && !q.isDuel);
   const myActive = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "accepted");
-  
   const mySubmitted = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "submitted");
   const myCompleted = quests.filter(q => q.assignedTo === currentUser?.id && q.status === "completed");
 
-  // Cari tantangan duel yang masuk (Invitation Scroll)
   const incomingDuel = quests.find(q => 
     q.isDuel && 
     q.duelStatus === "pending" && 
@@ -62,7 +57,7 @@ const QuestBoard = () => {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto relative">
+    <div className="p-6 max-w-6xl mx-auto relative space-y-10">
       
       {/* --- INVITATION SCROLL POP-UP --- */}
       <AnimatePresence>
@@ -75,30 +70,24 @@ const QuestBoard = () => {
               className="relative w-full max-w-md bg-[#fdf2d9] border-y-[12px] border-[#8b5a2b] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
               style={{ borderRadius: "2px" }}
             >
-              {/* Texture Kertas Kuno */}
               <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/old-paper.png')]" />
-              
               <div className="relative z-10 text-center space-y-6">
                 <div className="flex justify-center">
                   <div className="p-4 bg-[#8b5a2b]/10 rounded-full border border-[#8b5a2b]/20">
                     <Swords className="h-12 w-12 text-[#8b5a2b] animate-pulse" />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <h2 className="font-heading text-3xl text-[#5d4037] uppercase tracking-tighter">Tantangan Duel!</h2>
                   <div className="h-0.5 w-24 bg-[#8b5a2b]/30 mx-auto" />
                 </div>
-
                 <p className="font-body text-[#795548] text-lg leading-relaxed italic">
-                  "Dengar Lah, adventurer! <span className="font-bold text-[#5d4037]">@{challenger?.username}</span> telah menantang Anda untuk bertarung demi membuktikan kehebatan di medan pertempuran! Apakah Anda siap menerima tantangan ini dan menunjukkan keberanian sejati Anda? <br/><br/>
-                  Jika Anda menerima, bersiaplah untuk menghadapi ujian yang akan menguji keterampilan, strategi, dan keberanian Anda: 
-                  <br/>
-                  <span className="not-italic font-heading text-sm bg-[#8b5a2b]/10 px-2 py-1 rounded mt-2 inline-block">
+                  "Dengar Lah, adventurer! <span className="font-bold text-[#5d4037]">@{challenger?.username}</span> telah menantang Anda untuk bertarung! <br/><br/>
+                  Ujian keberanian: <br/>
+                  <span className="not-italic font-heading text-sm bg-[#8b5a2b]/10 px-2 py-1 rounded mt-2 inline-block border border-[#8b5a2b]/20 text-[#5d4037]">
                     {incomingDuel.title}
                   </span>"
                 </p>
-
                 <div className="flex gap-3 pt-4 font-heading">
                   <Button 
                     onClick={() => respondToDuel && respondToDuel(incomingDuel.id, 'accept')}
@@ -115,8 +104,6 @@ const QuestBoard = () => {
                   </Button>
                 </div>
               </div>
-
-              {/* Dekorasi Gulungan Samping */}
               <div className="absolute -left-6 top-0 bottom-0 w-8 bg-[#6d4c41] rounded-full shadow-inner" />
               <div className="absolute -right-6 top-0 bottom-0 w-8 bg-[#6d4c41] rounded-full shadow-inner" />
             </motion.div>
@@ -125,42 +112,43 @@ const QuestBoard = () => {
       </AnimatePresence>
 
       {/* --- HEADER --- */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="font-heading text-2xl text-gold flex items-center gap-2">
-          <ScrollIcon className="h-6 w-6" />
-          Papan Tugas
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <h1 className="font-heading text-3xl text-gold flex items-center gap-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+          <ScrollIcon className="h-8 w-8" />
+          Papan Tugas Guild
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {isGM && <InviteModal />}
           {isGM && (
             <Dialog open={open} onOpenChange={setOpen}>
-              {/* ... trigger & content dialog post quest lo tetep sama ... */}
               <DialogTrigger asChild>
-                <Button className="font-heading">+ Tugas Baru</Button>
+                <Button className="font-heading bg-gold text-black hover:bg-gold/80 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                  + Tugas Baru
+                </Button>
               </DialogTrigger>
-              <DialogContent className="bg-card border-border">
+              <DialogContent className="bg-card border-border max-w-lg">
                 <DialogHeader>
-                  <DialogTitle className="font-heading text-gold">Pasang Tugas Barus</DialogTitle>
+                  <DialogTitle className="font-heading text-2xl text-gold">Pasang Tugas Baru</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-4">
+                <form onSubmit={handleCreate} className="space-y-4 pt-4">
                   <div>
                     <Label>Judul Tugas</Label>
-                    <Input value={title} onChange={e => setTitle(e.target.value)} required className="bg-secondary" />
+                    <Input value={title} onChange={e => setTitle(e.target.value)} required className="bg-secondary border-border" />
                   </div>
                   <div>
                     <Label>Deskripsi</Label>
-                    <Textarea value={desc} onChange={e => setDesc(e.target.value)} required className="bg-secondary" />
+                    <Textarea value={desc} onChange={e => setDesc(e.target.value)} required className="bg-secondary border-border min-h-[100px]" />
                   </div>
                   <div>
-                    <Label>Kesulitan</Label>
-                    <div className="flex gap-2 mt-1">
+                    <Label>Tingkat Kesulitan</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-1">
                       {(["easy", "medium", "hard", "legendary"] as QuestDifficulty[]).map(d => (
                         <button
                           key={d}
                           type="button"
                           onClick={() => setDiff(d)}
-                          className={`px-3 py-1.5 rounded border text-sm font-heading capitalize transition-all ${
-                            diff === d ? "border-gold bg-gold/10 text-gold" : "border-border text-muted-foreground"
+                          className={`px-2 py-2 rounded border text-[10px] font-heading uppercase transition-all ${
+                            diff === d ? "border-gold bg-gold/10 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]" : "border-border text-muted-foreground hover:border-muted-foreground"
                           }`}
                         >
                           {d}
@@ -169,13 +157,13 @@ const QuestBoard = () => {
                     </div>
                   </div>
                   <div>
-                    <Label>Batas Tugas</Label>
-                    <div className="flex gap-2 mt-1">
+                    <Label>Batas Waktu (Deadline)</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" className={cn("flex-1 justify-start text-left font-body bg-secondary border-border", !deadlineDate && "text-muted-foreground")}>
+                          <Button variant="outline" className={cn("flex-1 min-w-[150px] justify-start text-left font-body bg-secondary border-border", !deadlineDate && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deadlineDate ? format(deadlineDate, "PPP") : "Pick date"}
+                            {deadlineDate ? format(deadlineDate, "PPP") : "Pilih Tanggal"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -185,48 +173,44 @@ const QuestBoard = () => {
                             onSelect={setDeadlineDate}
                             disabled={(date) => date < new Date()}
                             initialFocus
-                            className={cn("p-3 pointer-events-auto")}
                           />
                         </PopoverContent>
                       </Popover>
-                      <Select value={deadlineHour} onValueChange={setDeadlineHour}>
-                        <SelectTrigger className="w-20 bg-secondary border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const val = String(i + 1).padStart(2, "0");
-                            return (
-                              <SelectItem key={val} value={val}>
-                                {val}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                      <span className="flex items-center text-muted-foreground">:</span>
-                      <Select value={deadlineMinute} onValueChange={setDeadlineMinute}>
-                        <SelectTrigger className="w-20 bg-secondary border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["00", "15", "30", "45"].map(m => (
-                            <SelectItem key={m} value={m}>{m}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={deadlinePeriod} onValueChange={(v) => setDeadlinePeriod(v as "AM" | "PM")}>
-                        <SelectTrigger className="w-20 bg-secondary border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="AM">AM</SelectItem>
-                          <SelectItem value="PM">PM</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1 bg-secondary border border-border rounded-md px-2">
+                        <Select value={deadlineHour} onValueChange={setDeadlineHour}>
+                          <SelectTrigger className="w-14 border-none bg-transparent focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map(val => (
+                              <SelectItem key={val} value={val}>{val}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-muted-foreground">:</span>
+                        <Select value={deadlineMinute} onValueChange={setDeadlineMinute}>
+                          <SelectTrigger className="w-14 border-none bg-transparent focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["00", "15", "30", "45"].map(m => (
+                              <SelectItem key={m} value={m}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={deadlinePeriod} onValueChange={(v) => setDeadlinePeriod(v as "AM" | "PM")}>
+                          <SelectTrigger className="w-16 border-none bg-transparent focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full font-heading">Pasang Tugas</Button>
+                  <Button type="submit" className="w-full font-heading h-12 text-lg">Buat Tugas</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -234,44 +218,96 @@ const QuestBoard = () => {
         </div>
       </div>
 
-      {/* --- SECTIONS --- */}
-      <Section title="Tugas Tersedia" count={openQuests.length}>
-        {openQuests.map(q => <QuestCard key={q.id} quest={q} />)}
-      </Section>
+      {/* --- SECTIONS DENGAN FRAME --- */}
+      <div className="grid gap-12">
+        <Section title="Tugas Tersedia" count={openQuests.length} variant="default" icon={<ScrollIcon size={16}/>}>
+          {openQuests.map(q => <QuestCard key={q.id} quest={q} />)}
+        </Section>
 
-      {/* Duel Challenges HAPUS (Sudah diganti pop-up & masuk ke Active) */}
+        <Section title="Tugas Aktif" count={myActive.length} variant="active" icon={<Sword size={16}/>}>
+          {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
+        </Section>
 
-      <Section title="Tugas Aktif" count={myActive.length}>
-        {myActive.map(q => <QuestCard key={q.id} quest={q} />)}
-      </Section>
+        <Section title="Menunggu Ulasan" count={mySubmitted.length} variant="review" icon={<Timer size={16}/>}>
+          {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
+        </Section>
 
-      <Section title="Diajukan (Menunggu Ulasan)" count={mySubmitted.length} glow="gold">
-        {mySubmitted.map(q => <QuestCard key={q.id} quest={q} />)}
-      </Section>
-
-      <Section title="Selesai" count={myCompleted.length} glow="green">
-        {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
-      </Section>
+        <Section title="Arsip Selesai" count={myCompleted.length} variant="completed" icon={<Archive size={16}/>}>
+          {myCompleted.map(q => <QuestCard key={q.id} quest={q} />)}
+        </Section>
+      </div>
     </div>
   );
 };
 
-// ... Section component tetap sama ...
-const Section = ({ title, count, children, glow }: { title: string; count: number; children: React.ReactNode; glow?: "gold" | "green" }) => (
-  <div className="mb-8">
-    <h2 className="font-heading text-lg text-foreground mb-3 flex items-center gap-2">
-      {title}
-      <span className="text-sm text-muted-foreground font-body">({count})</span>
-    </h2>
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <AnimatePresence>
-        {count === 0 && (
-          <p className="text-muted-foreground font-body col-span-full text-center py-8">Belum ada tugas</p>
-        )}
-        {children}
-      </AnimatePresence>
-    </div>
-  </div>
-);
+// --- KOMPONEN SECTION DENGAN FRAME RAPI ---
+interface SectionProps {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+  variant: "default" | "active" | "review" | "completed";
+  icon: React.ReactNode;
+}
+
+const Section = ({ title, count, children, variant, icon }: SectionProps) => {
+  const styles = {
+    default: "border-border/40 bg-secondary/10 shadow-none",
+    active: "border-blue-500/30 bg-blue-500/5 shadow-[inset_0_0_30px_rgba(59,130,246,0.03)]",
+    review: "border-gold/30 bg-gold/5 shadow-[inset_0_0_30px_rgba(212,175,55,0.03)]",
+    completed: "border-emerald-500/30 bg-emerald-500/5 shadow-[inset_0_0_30px_rgba(16,185,129,0.03)]",
+  };
+
+  const dotColors = {
+    default: "bg-muted-foreground/40",
+    active: "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]",
+    review: "bg-gold shadow-[0_0_10px_rgba(212,175,55,0.5)]",
+    completed: "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]",
+  };
+
+  return (
+    <motion.section 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className={cn(
+        "relative rounded-xl border p-6 pt-10 transition-all duration-300",
+        styles[variant]
+      )}
+    >
+      {/* Label Badge di pojok kiri atas Frame */}
+      <div className="absolute -top-4 left-6 flex items-center gap-2.5 px-4 py-1.5 rounded-lg bg-background border border-inherit shadow-lg z-10">
+        <span className={cn("text-foreground", variant === 'review' ? 'text-gold' : '')}>
+          {icon}
+        </span>
+        <h2 className="font-heading text-sm tracking-widest uppercase text-foreground whitespace-nowrap">
+          {title} <span className="ml-1 opacity-50 font-body text-xs lowercase">({count})</span>
+        </h2>
+        <span className={cn("w-1.5 h-1.5 rounded-full ml-1", dotColors[variant])} />
+      </div>
+
+      {/* Grid Content */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 relative">
+        <AnimatePresence mode="popLayout">
+          {count === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-border/40 rounded-xl bg-background/40"
+            >
+              <div className="text-5xl mb-3 opacity-10 font-heading select-none italic text-gold">Kosong</div>
+              <p className="text-muted-foreground font-body text-sm italic tracking-wide">Tidak ada catatan tugas ditemukan.</p>
+            </motion.div>
+          ) : (
+            children
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Dekorasi Sudut Frame (RPG Aesthetic) */}
+      <div className="absolute top-3 right-3 w-3 h-3 border-t-2 border-r-2 border-inherit opacity-20" />
+      <div className="absolute bottom-3 left-3 w-3 h-3 border-b-2 border-l-2 border-inherit opacity-20" />
+    </motion.section>
+  );
+};
 
 export default QuestBoard;

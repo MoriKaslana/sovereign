@@ -17,7 +17,7 @@ const ReviewBoard = () => {
       <h1 className="font-heading text-2xl text-gold mb-6">⚖️ Papan Ulasan</h1>
 
       {submitted.length === 0 && (
-        <p className="text-muted-foreground font-body text-center py-12">No quests awaiting review.</p>
+        <p className="text-muted-foreground font-body text-center py-12">Tidak ada tugas yang sedang menunggu ulasan.</p>
       )}
 
       <div className="space-y-4">

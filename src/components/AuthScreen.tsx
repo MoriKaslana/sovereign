@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { useGame} from "@/context/GameContext";
+import { motion, AnimatePresence } from "framer-motion"; // Tambah AnimatePresence untuk animasi teks
+import { useGame } from "@/context/GameContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react"; // Tambah icon info jika perlu
 import authBg from "@/assets/auth-bg.jpg";
 import { Role } from "@/types/game";
 
@@ -17,20 +17,25 @@ const AuthScreen = () => {
   const [role, setRole] = useState<Role>("adventurer");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  
+  // State untuk melacak hover penjelasan
+  const [hoveredRole, setHoveredRole] = useState<Role | null>(null);
 
-  // Fungsi handleSubmit sekarang pakai async
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (isLogin) {
-      // Ditambah await karena login sekarang nembak ke Supabase
       const success = await login(username, password);
       if (!success) setError("Invalid credentials.");
     } else {
-      // Ditambah await karena register sekarang nembak ke Supabase
       const success = await register(email, username, password, role);
       if (!success) setError("Registration failed or email/username already taken.");
     }
+  };
+
+  const roleDescriptions = {
+    adventurer: "Sosok pemberani yang menerima tugas, berpacu dengan tenggat waktu, dan mendapatkan XP. Dapat menerima tugas dan mengirimkannya untuk ditinjau.",
+    guild_master: "Pemimpin yang membuat tugas, meninjau pengajuan, menolak atau menyetujui tugas, dan mengelola guild. Dapat mengundang adventurer."
   };
 
   return (
@@ -52,6 +57,7 @@ const AuthScreen = () => {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ... Login/Email/Username fields tetap sama ... */}
           {isLogin ? (
             <div>
               <Label className="text-foreground">Username atau Email</Label>
@@ -84,11 +90,17 @@ const AuthScreen = () => {
                   className="bg-secondary border-border"
                 />
               </div>
+              
+              {/* BAGIAN ROLE DENGAN HOVER EXPLANATION */}
               <div>
-                <Label className="text-foreground">Role</Label>
+                <Label className="text-foreground flex items-center gap-2">
+                  Role <Info size={14} className="text-muted-foreground" />
+                </Label>
                 <div className="flex gap-3 mt-1">
                   <button
                     type="button"
+                    onMouseEnter={() => setHoveredRole("guild_master")}
+                    onMouseLeave={() => setHoveredRole(null)}
                     onClick={() => setRole("guild_master")}
                     className={`flex-1 py-3 rounded-md border font-heading text-sm transition-all ${
                       role === "guild_master"
@@ -100,6 +112,8 @@ const AuthScreen = () => {
                   </button>
                   <button
                     type="button"
+                    onMouseEnter={() => setHoveredRole("adventurer")}
+                    onMouseLeave={() => setHoveredRole(null)}
                     onClick={() => setRole("adventurer")}
                     className={`flex-1 py-3 rounded-md border font-heading text-sm transition-all ${
                       role === "adventurer"
@@ -110,10 +124,31 @@ const AuthScreen = () => {
                     ⚔️ Adventurer
                   </button>
                 </div>
+                
+                {/* Deskripsi yang muncul saat di-hover atau dipilih */}
+                <div className="mt-2 min-h-[60px]"> 
+                  <AnimatePresence mode="wait">
+                    {(hoveredRole || role) && (
+                      <motion.p
+                        key={hoveredRole || role}
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[12px] leading-relaxed text-muted-foreground italic bg-secondary/30 p-2 rounded border border-border/50"
+                      >
+                        <span className="text-gold font-bold uppercase not-italic mr-1">
+                          {(hoveredRole || role).replace('_', ' ')}:
+                        </span>
+                        {roleDescriptions[hoveredRole || role]}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </>
           )}
 
+          {/* ... Password & Submit button tetap sama ... */}
           <div>
             <Label className="text-foreground">Password</Label>
             <div className="relative">
