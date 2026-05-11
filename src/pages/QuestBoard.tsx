@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Tambahkan useEffect
 import { motion, AnimatePresence } from "framer-motion";
-import { QuestDifficulty, Quest } from "@/types/game";
+import { QuestDifficulty } from "@/types/game";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Swords, Scroll as ScrollIcon, ShieldCheck, Sword, Timer, Archive } from "lucide-react";
+import { CalendarIcon, Swords, Scroll as ScrollIcon, Sword, Timer, Archive } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import QuestCard from "@/components/QuestCard";
 import InviteModal from "@/components/InviteModal";
 import { useGame } from "@/context/GameContext";
+import { TutorialOverlay } from "@/components/TutorialOverlay"; // Import Tutorial kita
 
 const QuestBoard = () => {
   const { currentUser, quests, createQuest, respondToDuel, users } = useGame();
@@ -28,6 +29,60 @@ const QuestBoard = () => {
   const [open, setOpen] = useState(false);
 
   const isGM = currentUser?.role === "guild_master";
+
+  // --- LOGIKA MULTI-STEP TUTORIAL ---
+  const [currentStep, setCurrentStep] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  const tutorialSteps = [
+    {
+      targetId: "quest-board-title",
+      title: "Selamat Datang, GM!",
+      text: "Ini adalah Papan Tugas Guild. Tempat utama untuk memantau semua misi dan aktivitas adventurer Anda."
+    },
+    {
+      targetId: "sidebar-container", // Mengincar ID yang kita pasang di AppSidebar tadi
+      title: "Navigasi Guild",
+      text: "Gunakan sidebar ini untuk berpindah ke Codex, Aula Duel, atau melihat profil guild Anda."
+    },
+    {
+      targetId: "step-create-quest",
+      title: "Posting Tugas Baru",
+      text: "Sebagai Guild Master, Anda bisa membuat misi baru di sini. Tentukan kesulitan dan batas waktunya!"
+    },
+    {
+      targetId: "step-invite-member",
+      title: "Rekrut Anggota",
+      text: "Klik tombol ini untuk mengundang adventurer baru bergabung ke dalam guild Sovereign Anda."
+    }
+  ];
+
+  useEffect(() => {
+    if (isGM && currentUser) {
+      // Tutorial hanya muncul sekali per User ID
+      const hasSeen = localStorage.getItem(`gm_onboarding_done_${currentUser.id}`);
+      if (!hasSeen) {
+        setShowTutorial(true);
+      }
+    }
+  }, [isGM, currentUser]);
+
+  const handleNext = () => {
+    if (currentStep < tutorialSteps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    } else {
+      finishTutorial();
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentStep > 0) setCurrentStep(prev => prev - 1);
+  };
+
+  const finishTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem(`gm_onboarding_done_${currentUser?.id}`, "true");
+  };
 
   // --- LOGIKA FILTER ---
   const openQuests = quests.filter(q => q.status === "open" && !q.isDuel);
@@ -59,6 +114,19 @@ const QuestBoard = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto relative space-y-10">
       
+      {/* Overlay Tutorial */}
+      <TutorialOverlay 
+        isOpen={showTutorial}
+        targetId={tutorialSteps[currentStep]?.targetId}
+        title={tutorialSteps[currentStep]?.title}
+        text={tutorialSteps[currentStep]?.text}
+        currentStep={currentStep}
+        totalSteps={tutorialSteps.length}
+        onNext={handleNext}
+        onPrev={handlePrev}
+        onSkip={finishTutorial}
+      />
+
       {/* --- INVITATION SCROLL POP-UP --- */}
       <AnimatePresence>
         {incomingDuel && (
@@ -113,16 +181,26 @@ const QuestBoard = () => {
 
       {/* --- HEADER --- */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <h1 className="font-heading text-3xl text-gold flex items-center gap-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        <h1 
+          id="quest-board-title" // ID STEP 1
+          className="font-heading text-3xl text-gold flex items-center gap-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+        >
           <ScrollIcon className="h-8 w-8" />
           Papan Tugas Guild
         </h1>
         <div className="flex gap-3">
-          {isGM && <InviteModal />}
+          {isGM && (
+            <div id="step-invite-member"> {/* ID STEP 4 */}
+              <InviteModal />
+            </div>
+          )}
           {isGM && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="font-heading bg-gold text-black hover:bg-gold/80 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                <Button 
+                  id="step-create-quest" // ID STEP 3
+                  className="font-heading bg-gold text-black hover:bg-gold/80 shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                >
                   + Tugas Baru
                 </Button>
               </DialogTrigger>
@@ -240,7 +318,12 @@ const QuestBoard = () => {
   );
 };
 
-// --- KOMPONEN SECTION DENGAN FRAME RAPI ---
+// --- Komponen Section tetap sama seperti sebelumnya (SectionProps, Section) ---
+// (Paste kembali Section component di bawah sini seperti yang kamu punya)
+
+export default QuestBoard;
+
+// --- KOMPONEN SECTION (Taruh di bawah fungsi QuestBoard) ---
 interface SectionProps {
   title: string;
   count: number;
@@ -274,7 +357,6 @@ const Section = ({ title, count, children, variant, icon }: SectionProps) => {
         styles[variant]
       )}
     >
-      {/* Label Badge di pojok kiri atas Frame */}
       <div className="absolute -top-4 left-6 flex items-center gap-2.5 px-4 py-1.5 rounded-lg bg-background border border-inherit shadow-lg z-10">
         <span className={cn("text-foreground", variant === 'review' ? 'text-gold' : '')}>
           {icon}
@@ -285,7 +367,6 @@ const Section = ({ title, count, children, variant, icon }: SectionProps) => {
         <span className={cn("w-1.5 h-1.5 rounded-full ml-1", dotColors[variant])} />
       </div>
 
-      {/* Grid Content */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 relative">
         <AnimatePresence mode="popLayout">
           {count === 0 ? (
@@ -303,11 +384,8 @@ const Section = ({ title, count, children, variant, icon }: SectionProps) => {
         </AnimatePresence>
       </div>
 
-      {/* Dekorasi Sudut Frame (RPG Aesthetic) */}
       <div className="absolute top-3 right-3 w-3 h-3 border-t-2 border-r-2 border-inherit opacity-20" />
       <div className="absolute bottom-3 left-3 w-3 h-3 border-b-2 border-l-2 border-inherit opacity-20" />
     </motion.section>
   );
 };
-
-export default QuestBoard;

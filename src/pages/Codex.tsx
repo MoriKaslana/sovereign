@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TutorialOverlay } from "@/components/TutorialOverlay"; 
+import { useGame } from "@/context/GameContext";
 
 // --- DATA (Tetap Sama, Tidak Ada Yang Dihapus) ---
 const BUFFS = [
@@ -44,19 +46,52 @@ const ROLES = [
 
 // --- MAIN COMPONENT ---
 const Codex = () => {
-  // Gunakan state untuk melacak tab aktif agar AnimatePresence bisa bekerja maksimal
+  const { currentUser } = useGame();
   const [activeTab, setActiveTab] = useState("roles");
 
+  // --- LOGIKA TUTORIAL ---
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      const hasSeen = localStorage.getItem(`codex_tutorial_done_${currentUser.id}`);
+      if (!hasSeen) {
+        setShowTutorial(true);
+      }
+    }
+  }, [currentUser]);
+
+  const finishTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem(`codex_tutorial_done_${currentUser?.id}`, "true");
+  };
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto relative">
+      {/* Tutorial Overlay */}
+      <TutorialOverlay 
+        isOpen={showTutorial}
+        targetId="codex-nav"
+        title="Naskah Kuno Guild"
+        text="Selamat datang di perpustakaan rahasia! Di sini Anda bisa mempelajari segala hal: dari peran (Roles), keuntungan (Buffs), kutukan (Debuffs), hingga cara menaikkan level. Pastikan Anda memahami aturan mainnya!"
+        currentStep={0}
+        totalSteps={1}
+        onNext={finishTutorial}
+        onPrev={() => {}}
+        onSkip={finishTutorial}
+      />
+
       <header className="text-center mb-10">
         <h1 className="font-heading text-3xl text-gold mb-2">📖 Naskah Guild</h1>
-        <p className="text-muted-foreground font-body">Naskah Suci tentang aturan dan tradisi Guild</p>
+        <p className="text-muted-foreground font-body italic text-sm">"Pengetahuan adalah pedang tertajam di dalam Guild ini."</p>
       </header>
 
       <Tabs defaultValue="roles" onValueChange={setActiveTab} className="w-full">
-        {/* Navigation */}
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-background/50 border border-gold/20 p-1 h-auto mb-8">
+        {/* Navigation - Spotlight Target */}
+        <TabsList 
+          id="codex-nav"
+          className="grid w-full grid-cols-2 lg:grid-cols-5 bg-background/50 border border-gold/20 p-1 h-auto mb-8 relative z-10 shadow-lg"
+        >
           <TabsTrigger value="roles" className="data-[state=active]:bg-gold/20 data-[state=active]:text-gold py-2 font-heading text-xs">⚜️ ROLES</TabsTrigger>
           <TabsTrigger value="buffs" className="data-[state=active]:bg-emerald/20 data-[state=active]:text-emerald-glow py-2 font-heading text-xs">✨ BUFFS</TabsTrigger>
           <TabsTrigger value="debuffs" className="data-[state=active]:bg-crimson/20 data-[state=active]:text-crimson py-2 font-heading text-xs">💀 DEBUFFS</TabsTrigger>
@@ -93,7 +128,7 @@ const Codex = () => {
                       <span className="text-2xl">{item.icon}</span>
                       <div className="flex-1">
                         <h3 className="font-heading text-sm text-emerald-glow">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2 hover:line-clamp-none">{item.desc}</p>
+                        <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2 hover:line-clamp-none italic">{item.desc}</p>
                         <div className="mt-3 flex items-start gap-1.5 bg-emerald/10 rounded px-2.5 py-1.5 border border-emerald/20">
                           <span className="text-[10px] font-heading text-emerald-glow shrink-0">HOW:</span>
                           <span className="text-[10px] text-foreground font-body">{item.howTo}</span>
@@ -115,7 +150,7 @@ const Codex = () => {
                       <span className="text-2xl">{item.icon}</span>
                       <div className="flex-1">
                         <h3 className="font-heading text-sm text-crimson">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2 hover:line-clamp-none">{item.desc}</p>
+                        <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2 hover:line-clamp-none italic">{item.desc}</p>
                         <div className="mt-3 flex items-start gap-1.5 bg-crimson/10 rounded px-2.5 py-1.5 border border-crimson/20">
                           <span className="text-[10px] font-heading text-crimson shrink-0">TRIGGER:</span>
                           <span className="text-[10px] text-foreground font-body">{item.howTo}</span>

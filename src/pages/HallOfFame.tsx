@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/context/GameContext";
-import { Trophy, Star, ShieldAlert, Swords } from "lucide-react"; // <- TAMBAH SWORDS
+import { Trophy, Star, ShieldAlert, Swords } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import ExileDialog from "@/components/ExiledDialog"; 
 import { User } from "@/types/game";
 import { toast } from "sonner";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 
 const HallOfFame = () => {
   const { users, achievements, currentUser, kickMember, quests, sendDuelChallenge } = useGame();
@@ -13,6 +14,36 @@ const HallOfFame = () => {
   // --- STATE FOR RPG EXILE DIALOG ---
   const [isExileDialogOpen, setIsExileDialogOpen] = useState(false);
   const [memberToExile, setMemberToExile] = useState<User | null>(null);
+
+  // --- LOGIKA TUTORIAL ---
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.guildId) {
+      const hasSeen = localStorage.getItem(`hof_tutorial_done_${currentUser.id}`);
+      if (!hasSeen) {
+        setShowTutorial(true);
+      }
+    }
+  }, [currentUser]);
+
+  const nextStep = () => {
+    if (tutorialStep < 2) {
+      setTutorialStep(s => s + 1);
+    } else {
+      finishTutorial();
+    }
+  };
+
+  const prevStep = () => {
+    setTutorialStep(s => s - 1);
+  };
+
+  const finishTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem(`hof_tutorial_done_${currentUser?.id}`, "true");
+  };
 
   // FILTER LOGIC: 
   const leaderboard = [...users]
@@ -42,15 +73,46 @@ const HallOfFame = () => {
     }
   };
 
+  // Konfigurasi Step Tutorial
+  const tutorialSteps = [
+    {
+      targetId: "hof-leaderboard",
+      title: "Papan Peringkat",
+      text: "Inilah daftar pahlawan di Guild-mu. Semakin banyak XP yang kamu kumpulkan dari Quest, semakin tinggi posisimu di Aula Kehormatan ini."
+    },
+    {
+      targetId: "hof-actions",
+      title: "Interaksi Anggota",
+      text: "Gunakan ikon Pedang (Swords) untuk menantang duel anggota lain. Kamu harus memiliki minimal 1 Quest aktif untuk menantang seseorang. Khusus Guild Master, tombol Perisai (Exile) akan muncul untuk mengeluarkan anggota dari Guild."
+    },
+    {
+      targetId: "hof-achievements",
+      title: "Koleksi Prestasi",
+      text: "Di bawah sini adalah daftar medali yang bisa kamu raih. Prestasi yang masih terkunci akan berwarna abu-abu (grayscale) hingga kamu berhasil memenuhi syarat pembukaannya."
+    }
+  ];
+
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-3xl mx-auto relative">
+      <TutorialOverlay 
+        isOpen={showTutorial}
+        targetId={tutorialSteps[tutorialStep].targetId}
+        title={tutorialSteps[tutorialStep].title}
+        text={tutorialSteps[tutorialStep].text}
+        currentStep={tutorialStep}
+        totalSteps={tutorialSteps.length}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={finishTutorial}
+      />
+
       <h1 className="font-heading text-2xl text-gold mb-6 flex items-center gap-2">
         <Trophy className="h-6 w-6" />
-        Aula
+        Aula Kehormatan
       </h1>
 
       {/* Leaderboard Section */}
-      <div className="mb-8">
+      <div className="mb-8" id="hof-leaderboard">
         <h2 className="font-heading text-lg text-foreground mb-3 flex justify-between items-center">
           <span>{currentUser?.guildId ? "Ranking Guild" : "Adventurer Stats"}</span>
           {currentUser?.role === "guild_master" && (
@@ -62,7 +124,7 @@ const HallOfFame = () => {
         
         {leaderboard.length === 0 && (
           <p className="text-muted-foreground font-body text-center py-8 border border-dashed border-white/10 rounded-lg">
-            No adventurers in this guild yet.
+            Belum ada petualang di guild ini.
           </p>
         )}
 
@@ -117,7 +179,7 @@ const HallOfFame = () => {
               </div>
               
               {/* KOLOM AKSI (EXILE & DUEL) */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" id={i === 1 ? "hof-actions" : undefined}>
                 <div className="text-right">
                   <div className="font-heading text-gold text-sm">{u.xp} XP</div>
                   <div className="text-[10px] text-muted-foreground">🏆 {u.achievements?.length || 0} Prestasi</div>
@@ -143,7 +205,6 @@ const HallOfFame = () => {
                       size="icon"
                       className="h-8 w-8 text-gold/60 hover:text-gold hover:bg-gold/10 transition-colors"
                       onClick={() => {
-                        // Cari apakah lo punya quest yang berstatus 'accepted'
                         const myQuest = quests.find(q => q.assignedTo === currentUser?.id && q.status === "accepted");
                         if (!myQuest) {
                           toast.error("Kamu harus mengambil (Accept) minimal 1 quest dulu untuk menantang!");
@@ -163,7 +224,7 @@ const HallOfFame = () => {
         </div>
       </div>
 
-      <div className="mt-12">
+      <div className="mt-12" id="hof-achievements">
         <h2 className="font-heading text-lg text-foreground mb-4 flex items-center gap-2">
           <Star className="h-5 w-5 text-gold" />
           Prestasi
@@ -175,7 +236,6 @@ const HallOfFame = () => {
               const normalizedDb = userAch.toLowerCase().replace(/_/g, " ").trim();
               const normalizedTitle = a.title.toLowerCase().replace(/_/g, " ").trim();
               const normalizedId = a.id.toLowerCase().replace(/_/g, " ").trim();
-
               return normalizedDb === normalizedTitle || normalizedDb === normalizedId;
             });
             const isUnlockedByState = a.unlockedBy?.includes(currentUser?.id || "");

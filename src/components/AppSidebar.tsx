@@ -41,7 +41,12 @@ const AppSidebar = () => {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border transition-all duration-300 ease-in-out">
+    <Sidebar 
+      /* Tambahkan ID di sini untuk tutorial step 'Navigasi Guild' */
+      id="sidebar-container" 
+      collapsible="icon" 
+      className="border-r border-border transition-all duration-300 ease-in-out"
+    >
       <SidebarContent>
         <div className="p-4 border-b border-border flex items-center justify-center h-16">
           {!collapsed ? (
@@ -65,12 +70,10 @@ const AppSidebar = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-accent transition-all duration-200"
                       activeClassName="bg-sidebar-accent text-gold font-medium"
                     >
-                      {/* Container Ikon diperbaiki agar tidak terpotong (shrink-0) */}
                       <span className="text-xl shrink-0 flex items-center justify-center w-6">
                         {item.icon}
                       </span>
                       
-                      {/* Teks dengan transisi smooth */}
                       <span className={`font-body transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
                         collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
                       }`}>
