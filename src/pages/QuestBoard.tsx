@@ -38,17 +38,17 @@ const QuestBoard = () => {
     {
       targetId: "quest-board-title",
       title: "Selamat Datang, GM!",
-      text: "Ini adalah Papan Tugas Guild. Tempat utama untuk memantau semua misi dan aktivitas adventurer Anda."
+      text: "Ini adalah Papan Tugas Guild. Tempat utama untuk memantau semua tugas dan aktivitas adventurer Anda."
     },
     {
       targetId: "sidebar-container", // Mengincar ID yang kita pasang di AppSidebar tadi
       title: "Navigasi Guild",
-      text: "Gunakan sidebar ini untuk berpindah ke Codex, Aula Duel, atau melihat profil guild Anda."
+      text: "Gunakan sidebar ini untuk berpindah ke Papan Ulasan, Warkop Numpul, Naskah Guild, Aula, dan Profil Anda."
     },
     {
       targetId: "step-create-quest",
       title: "Posting Tugas Baru",
-      text: "Sebagai Guild Master, Anda bisa membuat misi baru di sini. Tentukan kesulitan dan batas waktunya!"
+      text: "Sebagai Guild Master, Anda bisa membuat tugas baru di sini. Tentukan kesulitan dan batas waktunya!"
     },
     {
       targetId: "step-invite-member",
